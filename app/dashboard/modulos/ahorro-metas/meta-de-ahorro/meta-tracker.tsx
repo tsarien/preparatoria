@@ -1,0 +1,135 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { hacerAporte } from "./actions";
+import {
+  calcularMesesParaMeta,
+  calcularProgresoPorcentaje,
+  metaAlcanzada,
+  validarAporte,
+} from "@/lib/ahorro";
+import type { MetaAhorro } from "@/types/database";
+import type { TutorFeedback } from "@/lib/ai/schemas/tutor";
+import { ProgressBar } from "@/components/ui/progress-bar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { FeedbackCard } from "@/components/feedback-card";
+
+export function MetaTracker({
+  metaInicial,
+  saldoDisponible,
+  feedbackPrevio,
+}: {
+  metaInicial: MetaAhorro;
+  saldoDisponible: number;
+  feedbackPrevio: TutorFeedback | null;
+}) {
+  const [meta, setMeta] = useState(metaInicial);
+  const [saldo, setSaldo] = useState(saldoDisponible);
+  const [monto, setMonto] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const alcanzada = metaAlcanzada(meta.monto_actual, meta.monto_objetivo);
+  const meses = calcularMesesParaMeta(meta.monto_objetivo, meta.monto_actual, meta.aporte_mensual_planeado);
+  const progreso = calcularProgresoPorcentaje(meta.monto_actual, meta.monto_objetivo);
+
+  function aportar() {
+    const valor = Number(monto);
+    if (!validarAporte(valor, saldo)) {
+      setError(
+        valor <= 0
+          ? "El aporte debe ser mayor a cero."
+          : `No tienes suficiente saldo (tienes $${saldo.toLocaleString("es-CO")}).`
+      );
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const resultado = await hacerAporte(meta.id, valor);
+      if (resultado.success) {
+        setMeta(resultado.meta);
+        setSaldo((s) => s - valor);
+        setMonto("");
+      } else {
+        setError(resultado.error);
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display text-lg font-medium text-ink">{meta.nombre}</h3>
+        {alcanzada && (
+          <Badge variant="sello" tone="gold">
+            Meta<br />lograda
+          </Badge>
+        )}
+      </div>
+
+      <ProgressBar
+        value={meta.monto_actual}
+        max={meta.monto_objetivo}
+        label={`${progreso}% completado`}
+      />
+
+      <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+        <div className="rounded-md border border-line bg-paper-raised p-3">
+          <p className="text-xs text-ink-soft">Ahorrado</p>
+          <p className="font-mono font-medium text-ink">${meta.monto_actual.toLocaleString("es-CO")}</p>
+        </div>
+        <div className="rounded-md border border-line bg-paper-raised p-3">
+          <p className="text-xs text-ink-soft">Meta</p>
+          <p className="font-mono font-medium text-ink">${meta.monto_objetivo.toLocaleString("es-CO")}</p>
+        </div>
+      </div>
+
+      {!alcanzada && (
+        <p className="text-sm text-ink-soft">
+          A ${meta.aporte_mensual_planeado.toLocaleString("es-CO")}/mes,{" "}
+          {meses === null
+            ? "nunca vas a llegar a la meta con un aporte de $0 — ajusta tu plan."
+            : `te faltan aproximadamente ${meses} ${meses === 1 ? "mes" : "meses"}.`}
+        </p>
+      )}
+
+      {!alcanzada && (
+        <div className="flex flex-col gap-2 border-t border-line pt-4">
+          <label htmlFor="aporte" className="text-sm font-medium text-ink">
+            Hacer un aporte (tienes ${saldo.toLocaleString("es-CO")} disponibles)
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="aporte"
+              type="number"
+              min="1"
+              step="1000"
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+              placeholder="100000"
+              className="h-10 flex-1 rounded-md border border-line bg-paper-raised px-3 text-sm text-ink outline-none focus-visible:border-gold"
+            />
+            <Button type="button" onClick={aportar} disabled={isPending}>
+              {isPending ? "Aportando…" : "Aportar"}
+            </Button>
+          </div>
+          {error && (
+            <p className="text-sm text-alert" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+      )}
+
+      {feedbackPrevio && (
+        <div className="border-t border-line pt-4">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-soft">
+            Cuando creaste esta meta, el tutor dijo:
+          </p>
+          <FeedbackCard feedback={feedbackPrevio} />
+        </div>
+      )}
+    </div>
+  );
+}

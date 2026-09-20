@@ -1,0 +1,27 @@
+# dependencias
+/node_modules
+
+# build de Next.js
+/.next/
+/out/
+
+# variables de entorno (nunca subir credenciales reales)
+.env
+.env.local
+.env*.local
+
+# logs
+npm-debug.log*
+*.log
+
+# sistema
+.DS_Store
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/

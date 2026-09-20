@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+/*
+  Sistema de diseño de preparatorIA — identidad de marca definida en el
+  moodboard del proyecto (ver ESTRUCTURA_PROYECTO.md / assets en /public).
+  - "primary" (morado/índigo) -> color de marca principal: botones, enlaces,
+    estados activos.
+  - "gold" (naranja/acento)   -> el nombre del token quedó de una iteración
+    anterior, pero ahora representa el ACENTO de marca (#FFB020): logros, XP,
+    momentos especiales — el mismo rol que cumplía antes, solo con el color
+    nuevo. No lo uses como decoración suelta.
+  - "growth" / "alert"        -> uso semántico: ingreso vs. gasto, correcto
+    vs. error. No son colores de marca, son significado.
+  - "ink" / "ink-soft"        -> texto. "paper" / "line"                 -> fondo y bordes.
+*/
+
+@theme {
+  --color-paper: #ffffff;
+  --color-paper-raised: #ffffff;
+  --color-ink: #1f2430;
+  --color-ink-soft: #5b6472;
+  --color-primary: #6c4dff;
+  --color-primary-soft: #efeaff;
+  --color-gold: #ffb020;
+  --color-gold-soft: #fff3de;
+  --color-growth: #1f9d63;
+  --color-growth-soft: #e3f7ec;
+  --color-alert: #e6493c;
+  --color-alert-soft: #fde9e7;
+  --color-line: #e9eaf2;
+
+  --font-display: "Baloo 2", ui-rounded, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  /* Modo oscuro: se activa agregando la clase .dark a <html> (ver lib/theme.ts
+     y app/dashboard/ajustes). Como todos los componentes usan las clases de
+     Tailwind generadas a partir de estas variables (bg-paper, text-ink, etc.)
+     en vez de colores fijos, redefinir las variables aquí re-temátiza toda la
+     app sin tener que tocar un solo componente. */
+  .dark {
+    --color-paper: #17151f;
+    --color-paper-raised: #211d2e;
+    --color-ink: #f2f1f7;
+    --color-ink-soft: #a8a3bd;
+    --color-primary: #9781ff;
+    --color-primary-soft: #2c2450;
+    --color-gold: #ffc15c;
+    --color-gold-soft: #3d2e10;
+    --color-growth: #4ade80;
+    --color-growth-soft: #16301f;
+    --color-alert: #f87171;
+    --color-alert-soft: #3a1b1a;
+    --color-line: #34304a;
+  }
+
+  /* Foco de teclado siempre visible — accesibilidad, no decoración */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
