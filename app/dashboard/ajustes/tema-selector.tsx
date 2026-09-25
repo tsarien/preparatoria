@@ -44,7 +44,7 @@ export function TemaSelector() {
             aria-checked={activo}
             onClick={() => elegir(opcion.valor)}
             className={cn(
-              "flex flex-col items-start gap-0.5 rounded-md border px-3 py-2.5 text-left transition-colors",
+              "press flex flex-col items-start gap-0.5 rounded-md border px-3 py-2.5 text-left transition-colors",
               activo ? "border-gold bg-gold-soft" : "border-line bg-paper-raised hover:border-ink/30"
             )}
           >

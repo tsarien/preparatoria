@@ -74,7 +74,7 @@ export function BilleteraForm() {
         </p>
       )}
 
-      <Button type="submit" disabled={isPending} className="mt-1 self-start">
+      <Button type="submit" disabled={isPending} className="press mt-1 self-start">
         {isPending ? "Registrando…" : "Registrar transacción"}
       </Button>
     </form>

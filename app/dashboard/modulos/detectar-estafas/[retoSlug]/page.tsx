@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRetoPorSlug, getProgreso } from "@/lib/retos";
+import { EncabezadoPagina, ICONO_MODULO } from "@/components/encabezado-pagina";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { EscenarioEstafa } from "./escenario-estafa";
 import type { TutorFeedback } from "@/lib/ai/schemas/tutor";
@@ -36,15 +36,13 @@ export default async function EscenarioEstafaPage({
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-6 py-12">
-      <header className="flex flex-col gap-1">
-        <Link
-          href="/dashboard/modulos/detectar-estafas"
-          className="text-sm text-ink-soft underline underline-offset-2"
-        >
-          ← Detectar estafas
-        </Link>
-        <h1 className="font-display text-2xl font-semibold text-ink">{reto.nombre}</h1>
-      </header>
+      <EncabezadoPagina
+        volverHref="/dashboard/modulos/detectar-estafas"
+        volverEtiqueta="Detectar estafas"
+        titulo={reto.nombre}
+        icono={ICONO_MODULO["detectar-estafas"]}
+        variante="compacta"
+      />
 
       <Card>
         <CardHeader>

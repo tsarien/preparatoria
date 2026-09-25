@@ -1,9 +1,9 @@
 import type { FromSchema } from "json-schema-to-ts";
 
 /**
- * Salida estructurada del tutor (usa la feature nativa "structured outputs" de la
- * API de Claude vía output_config.format — no prompting ni tool_choice a mano:
- * la API garantiza que esta forma se cumple).
+ * Salida estructurada del tutor. El subset de JSON Schema que soporta Gemini
+ * (type, enum, properties, required, additionalProperties, etc.) cubre este schema
+ * sin cambios — ver lib/ai/prompts/tutor.ts para cómo se conecta con la API.
  */
 export const tutorFeedbackSchema = {
   type: "object",

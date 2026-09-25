@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { hacerAporte } from "./actions";
 import {
   calcularMesesParaMeta,
@@ -14,6 +15,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FeedbackCard } from "@/components/feedback-card";
+import { consumirFeedbackReciente, lanzarConfeti } from "@/lib/celebrar";
 
 export function MetaTracker({
   metaInicial,
@@ -33,6 +35,26 @@ export function MetaTracker({
   const alcanzada = metaAlcanzada(meta.monto_actual, meta.monto_objetivo);
   const meses = calcularMesesParaMeta(meta.monto_objetivo, meta.monto_actual, meta.aporte_mensual_planeado);
   const progreso = calcularProgresoPorcentaje(meta.monto_actual, meta.monto_objetivo);
+
+  // Confeti solo en el momento en que la meta PASA a estar lograda durante esta
+  // sesión (un aporte que la completa). Si la página se abre con la meta ya
+  // lograda, `alcanzadaAntes` arranca en true y no se dispara nada.
+  const alcanzadaAntes = useRef(alcanzada);
+  useEffect(() => {
+    if (alcanzada && !alcanzadaAntes.current) {
+      void lanzarConfeti("grande");
+    }
+    alcanzadaAntes.current = alcanzada;
+  }, [alcanzada]);
+
+  // ¿Estamos viendo el feedback que el tutor acaba de dar (el estudiante venía de
+  // crear la meta) o el de una visita anterior? Solo el primero anima y celebra.
+  const [feedbackReciente, setFeedbackReciente] = useState(false);
+  useEffect(() => {
+    if (feedbackPrevio && consumirFeedbackReciente("meta-de-ahorro")) {
+      setFeedbackReciente(true);
+    }
+  }, [feedbackPrevio]);
 
   function aportar() {
     const valor = Number(monto);
@@ -62,7 +84,7 @@ export function MetaTracker({
       <div className="flex items-center justify-between">
         <h3 className="font-display text-lg font-medium text-ink">{meta.nombre}</h3>
         {alcanzada && (
-          <Badge variant="sello" tone="gold">
+          <Badge variant="sello" tone="gold" className="animate-stamp">
             Meta<br />lograda
           </Badge>
         )}
@@ -72,7 +94,24 @@ export function MetaTracker({
         value={meta.monto_actual}
         max={meta.monto_objetivo}
         label={`${progreso}% completado`}
+        animado
       />
+
+      {alcanzada && (
+        <div className="flex items-center gap-3 rounded-2xl border border-gold bg-gold-soft p-3">
+          <Image
+            src="/mascota/mascota-celebrando.png"
+            alt=""
+            width={320}
+            height={315}
+            className="h-14 w-auto shrink-0 animate-pop"
+          />
+          <p className="text-sm text-ink">
+            ¡Meta cumplida! Juntaste{" "}
+            <span className="font-mono font-medium">${meta.monto_objetivo.toLocaleString("es-CO")}</span>.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
         <div className="rounded-md border border-line bg-paper-raised p-3">
@@ -108,9 +147,9 @@ export function MetaTracker({
               value={monto}
               onChange={(e) => setMonto(e.target.value)}
               placeholder="100000"
-              className="h-10 flex-1 rounded-md border border-line bg-paper-raised px-3 text-sm text-ink outline-none focus-visible:border-gold"
+              className="h-10 min-w-0 flex-1 rounded-md border border-line bg-paper-raised px-3 text-sm text-ink outline-none focus-visible:border-gold"
             />
-            <Button type="button" onClick={aportar} disabled={isPending}>
+            <Button type="button" onClick={aportar} disabled={isPending} className="press">
               {isPending ? "Aportando…" : "Aportar"}
             </Button>
           </div>
@@ -127,7 +166,7 @@ export function MetaTracker({
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-soft">
             Cuando creaste esta meta, el tutor dijo:
           </p>
-          <FeedbackCard feedback={feedbackPrevio} />
+          <FeedbackCard feedback={feedbackPrevio} reciente={feedbackReciente} />
         </div>
       )}
     </div>

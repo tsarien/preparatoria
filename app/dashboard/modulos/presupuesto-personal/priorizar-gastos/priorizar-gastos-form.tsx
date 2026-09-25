@@ -26,7 +26,7 @@ export function PriorizarGastosForm({
   const restante = presupuesto - total;
 
   if (state.feedback) {
-    return <FeedbackCard feedback={state.feedback} />;
+    return <FeedbackCard feedback={state.feedback} reciente />;
   }
 
   function toggle(id: string) {
@@ -77,7 +77,7 @@ export function PriorizarGastosForm({
         </p>
       )}
 
-      <Button type="submit" disabled={isPending || restante < 0}>
+      <Button type="submit" disabled={isPending || restante < 0} className="press">
         {isPending ? "Enviando…" : "Confirmar elección"}
       </Button>
     </form>

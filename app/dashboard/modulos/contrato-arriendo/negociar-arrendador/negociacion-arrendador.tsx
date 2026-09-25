@@ -7,6 +7,7 @@ import type { MensajeChat } from "@/lib/ai/prompts/arrendador";
 import type { TutorFeedback } from "@/lib/ai/schemas/tutor";
 import { Button } from "@/components/ui/button";
 import { FeedbackCard } from "@/components/feedback-card";
+import { BurbujaChat, IndicadorEscribiendo } from "@/components/chat-ui";
 
 const MAX_MENSAJES = 4;
 
@@ -26,8 +27,13 @@ export function NegociacionArrendador({
   const mensajesEstudiante = historial.filter((m) => m.autor === "estudiante").length;
   const puedeEscribir = puedeEnviarMensaje(mensajesEstudiante, MAX_MENSAJES);
 
+  // Mientras el arrendador responde un mensaje del estudiante (no mientras se evalúa la negociación).
+  const ultimo = historial[historial.length - 1];
+  const esperandoRespuesta = isPending && ultimo?.autor === "estudiante";
+
   if (feedback) {
-    return <FeedbackCard feedback={feedback} />;
+    // Si es el mismo objeto que llegó por props es historial; si no, lo acaba de dar el tutor.
+    return <FeedbackCard feedback={feedback} reciente={feedback !== feedbackPrevio} />;
   }
 
   function enviarMensaje() {
@@ -63,21 +69,13 @@ export function NegociacionArrendador({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2" aria-live="polite" aria-label="Conversación">
-        <div className="max-w-[85%] self-start rounded-md border border-line bg-paper-raised px-3 py-2 text-sm text-ink">
-          {mensajeInicial}
-        </div>
+        <BurbujaChat propia={false}>{mensajeInicial}</BurbujaChat>
         {historial.map((m, i) => (
-          <div
-            key={i}
-            className={`max-w-[85%] rounded-md px-3 py-2 text-sm ${
-              m.autor === "estudiante"
-                ? "self-end bg-ink text-paper"
-                : "self-start border border-line bg-paper-raised text-ink"
-            }`}
-          >
+          <BurbujaChat key={i} propia={m.autor === "estudiante"}>
             {m.texto}
-          </div>
+          </BurbujaChat>
         ))}
+        {esperandoRespuesta && <IndicadorEscribiendo />}
       </div>
 
       <div className="flex gap-2">
@@ -87,9 +85,9 @@ export function NegociacionArrendador({
           onKeyDown={(e) => e.key === "Enter" && enviarMensaje()}
           disabled={!puedeEscribir || isPending}
           placeholder={puedeEscribir ? "Escríbele al arrendador…" : "Ya usaste tus mensajes"}
-          className="h-10 flex-1 rounded-md border border-line bg-paper-raised px-3 text-sm text-ink outline-none focus-visible:border-gold disabled:opacity-50"
+          className="h-10 min-w-0 flex-1 rounded-md border border-line bg-paper-raised px-3 text-sm text-ink outline-none focus-visible:border-gold disabled:opacity-50"
         />
-        <Button type="button" variant="outline" onClick={enviarMensaje} disabled={!puedeEscribir || isPending}>
+        <Button type="button" variant="outline" className="press" onClick={enviarMensaje} disabled={!puedeEscribir || isPending}>
           Enviar
         </Button>
       </div>
@@ -100,7 +98,7 @@ export function NegociacionArrendador({
         </p>
       )}
 
-      <Button type="button" onClick={terminar} disabled={isPending || historial.length === 0} className="self-start">
+      <Button type="button" onClick={terminar} disabled={isPending || historial.length === 0} className="press self-start">
         {isPending ? "Evaluando…" : "Terminar negociación"}
       </Button>
     </div>

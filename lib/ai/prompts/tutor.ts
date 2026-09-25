@@ -1,8 +1,5 @@
-import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
-import { getAnthropicClient, isAiConfigured, MODELO_TUTOR } from "../client";
+import { getGeminiClient, isAiConfigured, MODELO_TUTOR } from "../client";
 import { tutorFeedbackSchema, type TutorFeedback } from "../schemas/tutor";
-
-const FORMATO_SALIDA = jsonSchemaOutputFormat(tutorFeedbackSchema);
 
 const SYSTEM_PROMPT = `Eres el tutor de preparatorIA, una app que enseña educación financiera
 práctica a adolescentes colombianos de 15 a 18 años a través de retos gamificados.
@@ -31,45 +28,69 @@ export type ResultadoTutor =
 
 /**
  * Pide retroalimentación estructurada al tutor de IA sobre la decisión de un
- * estudiante en un reto. Usa la feature "structured outputs" de la API de Claude:
- * la respuesta viene garantizada con la forma de TutorFeedback, sin necesidad de
- * parsear texto libre a mano.
+ * estudiante en un reto. Usa el soporte nativo de JSON Schema de la API de Gemini
+ * (`responseMimeType: "application/json"` + `responseJsonSchema`): la respuesta
+ * viene garantizada con la forma de TutorFeedback, sin necesidad de parsear texto
+ * libre a mano.
+ *
+ * Nota de migración: la documentación pública de Gemini (ai.google.dev) muestra
+ * ejemplos con `config.responseFormat.text.schema`, pero los tipos reales del SDK
+ * instalado (@google/genai) en esta versión no exponen ese campo — exponen
+ * `responseMimeType` + `responseJsonSchema` (o `responseSchema` para el subset
+ * propio de Gemini). Usamos estos dos porque son los que de verdad compilan contra
+ * el paquete instalado. Si actualizas la versión de @google/genai, vuelve a
+ * verificar los tipos de GenerateContentConfig antes de asumir que responseFormat
+ * ya está disponible.
  */
 export async function getTutorFeedback(input: TutorFeedbackInput): Promise<ResultadoTutor> {
   if (!isAiConfigured) {
-    return { success: false, error: "Falta configurar ANTHROPIC_API_KEY (ver README)." };
+    return { success: false, error: "Falta configurar GEMINI_API_KEY (ver README)." };
   }
 
-  const client = getAnthropicClient();
+  const client = getGeminiClient();
   if (!client) {
     return { success: false, error: "No se pudo inicializar el cliente de IA." };
   }
 
   try {
-    const message = await client.messages.parse({
+    const response = await client.models.generateContent({
       model: MODELO_TUTOR,
-      max_tokens: 500,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Reto: ${input.retoNombre}
+      contents: `Reto: ${input.retoNombre}
 
 Contexto del reto: ${input.contextoReto}
 
 Decisión del estudiante: ${input.decisionEstudiante}
 
 Evalúa esta decisión específica y da retroalimentación.`,
-        },
-      ],
-      output_config: { format: FORMATO_SALIDA },
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        maxOutputTokens: 500,
+        responseMimeType: "application/json",
+        responseJsonSchema: tutorFeedbackSchema,
+      },
     });
 
-    if (message.stop_reason === "refusal" || !message.parsed_output) {
+    if (response.promptFeedback?.blockReason) {
       return { success: false, error: "La IA no pudo generar retroalimentación para esta solicitud." };
     }
 
-    const feedback = message.parsed_output;
+    const finishReason = response.candidates?.[0]?.finishReason;
+    if (finishReason && finishReason !== "STOP") {
+      return { success: false, error: "La IA no pudo generar retroalimentación para esta solicitud." };
+    }
+
+    const texto = response.text;
+    if (!texto) {
+      return { success: false, error: "La IA no devolvió retroalimentación para esta solicitud." };
+    }
+
+    let feedback: TutorFeedback;
+    try {
+      feedback = JSON.parse(texto) as TutorFeedback;
+    } catch {
+      return { success: false, error: "La IA devolvió una respuesta que no se pudo interpretar." };
+    }
+
     return {
       success: true,
       feedback: { ...feedback, puntaje: Math.max(0, Math.min(100, Math.round(feedback.puntaje))) },

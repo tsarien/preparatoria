@@ -1,4 +1,4 @@
-import { getAnthropicClient, isAiConfigured, MODELO_PERSONAJE } from "../client";
+import { getGeminiClient, isAiConfigured, MODELO_PERSONAJE } from "../client";
 
 export interface MensajeChat {
   autor: "arrendador" | "estudiante";
@@ -42,35 +42,42 @@ export async function simularArrendador(
   historial: MensajeChat[]
 ): Promise<ResultadoArrendador> {
   if (!isAiConfigured) {
-    return { success: false, error: "Falta configurar ANTHROPIC_API_KEY (ver README)." };
+    return { success: false, error: "Falta configurar GEMINI_API_KEY (ver README)." };
   }
-  const client = getAnthropicClient();
+  const client = getGeminiClient();
   if (!client) return { success: false, error: "No se pudo inicializar el cliente de IA." };
   if (historial.length === 0 || historial[historial.length - 1].autor !== "estudiante") {
     return { success: false, error: "Falta un mensaje del estudiante para responder." };
   }
 
   try {
-    const message = await client.messages.create({
+    const response = await client.models.generateContent({
       model: MODELO_PERSONAJE,
-      max_tokens: 220,
-      system: construirSystemPrompt(escenario),
-      messages: historial.map((m) => ({
-        role: m.autor === "estudiante" ? ("user" as const) : ("assistant" as const),
-        content: m.texto,
+      contents: historial.map((m) => ({
+        role: m.autor === "estudiante" ? "user" : "model",
+        parts: [{ text: m.texto }],
       })),
+      config: {
+        systemInstruction: construirSystemPrompt(escenario),
+        maxOutputTokens: 220,
+      },
     });
 
-    if (message.stop_reason === "refusal") {
+    if (response.promptFeedback?.blockReason) {
       return { success: false, error: "La IA no pudo continuar esta simulación." };
     }
 
-    const textBlock = message.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
+    const finishReason = response.candidates?.[0]?.finishReason;
+    if (finishReason && finishReason !== "STOP") {
+      return { success: false, error: "La IA no pudo continuar esta simulación." };
+    }
+
+    const texto = response.text;
+    if (!texto) {
       return { success: false, error: "La IA no devolvió un mensaje de texto." };
     }
 
-    return { success: true, mensaje: textBlock.text };
+    return { success: true, mensaje: texto };
   } catch (error) {
     return {
       success: false,

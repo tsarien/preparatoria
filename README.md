@@ -87,7 +87,7 @@ El corazón de esta fase son dos funciones de Postgres — `registrar_transaccio
 
 Primer módulo de contenido completo, y primera integración real de IA. Establece el patrón que se repite en las Fases 4-6: cada reto vive en su propia carpeta (`page.tsx` + `*-form.tsx` + `actions.ts`), su contenido sale de la tabla `retos` (columna `config`, jsonb) en vez de estar hardcodeado en el componente, y la retroalimentación la da `getTutorFeedback()` en `lib/ai/prompts/tutor.ts`.
 
-**Cómo funciona el tutor de IA**: usa la feature nativa *structured outputs* de la API de Claude (`output_config.format` con un JSON Schema — no es "le pido que responda en JSON y cruzo los dedos"). El schema vive en `lib/ai/schemas/tutor.ts`, y el tipo de TypeScript se infiere automáticamente de ahí, así que el schema y el tipo nunca se desincronizan. El modelo usado es Haiku 4.5 (económico) — ver el comentario en `lib/ai/client.ts` sobre cuándo usar un modelo más capaz.
+**Cómo funciona el tutor de IA**: usa el soporte nativo de JSON Schema de la API de Gemini (`responseMimeType: "application/json"` + `responseJsonSchema` — no es "le pido que responda en JSON y cruzo los dedos"). El schema vive en `lib/ai/schemas/tutor.ts`, y el tipo de TypeScript se infiere automáticamente de ahí, así que el schema y el tipo nunca se desincronizan. El modelo usado es Gemini Flash-Lite (económico, gratis en Google AI Studio) — ver el comentario en `lib/ai/client.ts` sobre cuándo usar un modelo más capaz.
 
 Los 3 retos del módulo:
 1. **Distribuye tu primer salario** — reparte el salario simulado entre categorías; la suma tiene que calzar exacto.
@@ -99,14 +99,14 @@ Los tres conectan de verdad con la billetera de la Fase 2 (generan transacciones
 ### Pasos adicionales para esta fase
 
 1. Corre `supabase/migrations/0004_modulos_retos.sql` en el SQL Editor (después de 0001-0003). Esto crea las tablas de contenido y siembra el módulo con sus 3 retos.
-2. Consigue una API key en [console.anthropic.com](https://console.anthropic.com) → API Keys, y agrégala a `.env.local` como `ANTHROPIC_API_KEY` (y en Vercel cuando despliegues).
+2. Consigue una API key **gratis y sin tarjeta de crédito** en [Google AI Studio](https://aistudio.google.com/apikey): inicia sesión con una cuenta de Google → "Create API key" → "Create API key in new project" (o elige un proyecto existente). Cópiala y agrégala a `.env.local` como `GEMINI_API_KEY` (y en Vercel cuando despliegues). No pide método de pago — por eso se eligió la API de Gemini para este proyecto: cualquier profesor o jurado puede sacar su propia key gratis en menos de un minuto para probar la app.
 3. Corre las pruebas: `npm test` — deberían pasar 37 (23 de la Fase 2 + 14 nuevas de la lógica de los retos).
-4. `npm run dev`, entra a tu dashboard → **Presupuesto personal** (ya no dice "Próximamente") → prueba los 3 retos. Si `ANTHROPIC_API_KEY` no está configurada, vas a ver un error claro en vez de que la app se caiga.
+4. `npm run dev`, entra a tu dashboard → **Presupuesto personal** (ya no dice "Próximamente") → prueba los 3 retos. Si `GEMINI_API_KEY` no está configurada, vas a ver un error claro en vez de que la app se caiga.
 
 ### Qué no se hizo a propósito (queda para fases siguientes)
 
 - Los otros 3 módulos del MVP (Fases 4-6) — usan el mismo patrón que este.
-- Simulaciones conversacionales con la IA como "personaje" (el estafador, el arrendador) — eso empieza en la Fase 4, con un modelo más capaz que Haiku.
+- Simulaciones conversacionales con la IA como "personaje" (el estafador, el arrendador) — eso empieza en la Fase 4, con Gemini Flash (más capaz que Flash-Lite, pero se queda en la capa gratuita — ver `lib/ai/client.ts`).
 
 ## Fase 4 — Módulo: Detectar estafas
 
@@ -117,7 +117,7 @@ Segundo módulo, y el primero donde la IA actúa como **personaje** dentro de un
 - Cada escenario tiene un **límite de 3 mensajes** del estudiante (`lib/estafas.ts` → `MAX_MENSAJES_ESTUDIANTE`), para que sea una práctica corta y controlada, no una conversación abierta.
 - El módulo tiene **4 escenarios, no todos son estafas**: 3 sí lo son (premio falso, phishing bancario, "inversión" que triplica la plata) y 1 es un correo legítimo del colegio. La idea es enseñar a distinguir, no a desconfiar de todo.
 - La evaluación final reutiliza el mismo `getTutorFeedback()` de la Fase 3 (mismo schema, ahora con categorías de error nuevas como `no_detecta_senales_estafa`), en vez de inventar un sistema paralelo.
-- El estafador usa Sonnet 5 (`MODELO_PERSONAJE` en `lib/ai/client.ts`), no Haiku — una conversación necesita sonar más natural que una evaluación estructurada de una sola respuesta.
+- El estafador usa Gemini Flash (`MODELO_PERSONAJE` en `lib/ai/client.ts`), no Flash-Lite — una conversación necesita sonar más natural que una evaluación estructurada de una sola respuesta. Se queda dentro de la familia Flash (no Pro) a propósito, para no salirse de la capa gratuita.
 
 Si detectas correctamente una de las 3 estafas reales, el personaje recibe como "ingreso" el dinero que se habría perdido (`categoria: estafa_evitada`) — otra conexión real con la billetera de la Fase 2.
 
@@ -137,7 +137,7 @@ Si detectas correctamente una de las 3 estafas reales, el personaje recibe como 
 Tercer módulo, y segundo personaje de IA (`simularArrendador()` en `lib/ai/prompts/arrendador.ts`, mismos límites de guion fijo que el estafador de la Fase 4). Dos retos:
 
 1. **Lee el contrato** — un contrato de arriendo ficticio pero realista, con 8 cláusulas (3 de ellas problemáticas: incremento anual por encima del IPC, reparaciones estructurales a cargo del arrendatario, interés de mora del 5% diario) + 3 preguntas de comprensión. El estudiante marca las cláusulas que le parecen preocupantes.
-2. **Negocia con el arrendador** — chat de negociación (máximo 4 mensajes) para intentar bajar el depósito de 2 meses a 1. El arrendador (Sonnet 5) es cordial pero no cede solo porque se lo pidan — solo si el estudiante da una razón real.
+2. **Negocia con el arrendador** — chat de negociación (máximo 4 mensajes) para intentar bajar el depósito de 2 meses a 1. El arrendador (Gemini Flash) es cordial pero no cede solo porque se lo pidan — solo si el estudiante da una razón real.
 
 **Corrección importante**: los retos de las Fases 3 y 4 nunca estaban llamando a `otorgarXp()` — la barra de nivel del dashboard existía pero no se estaba alimentando de completar retos, solo del botón de prueba de la Fase 2. Ya está corregido en los 4 retos anteriores además de los 2 nuevos: completar cualquier reto ahora otorga XP (el puntaje del tutor, con un mínimo de 10 para que intentarlo siempre cuente para algo).
 
@@ -230,7 +230,7 @@ Revisión manual (no pude correr un auditor automático tipo Lighthouse sin un d
 Instalé Playwright y escribí 17 pruebas en dos archivos:
 
 - **`e2e/navegacion-publica.spec.ts`** (13 pruebas): páginas públicas y protección de rutas. No necesitan credenciales reales.
-- **`e2e/flujos-modulos.spec.ts`** (4 pruebas): el flujo completo de cada módulo — registro, login, completar el reto, ver retroalimentación real de la IA. Se saltan solas (`test.skip`) si no detectan `NEXT_PUBLIC_SUPABASE_URL` y `ANTHROPIC_API_KEY` en `.env.local`, en vez de fallar de forma confusa.
+- **`e2e/flujos-modulos.spec.ts`** (4 pruebas): el flujo completo de cada módulo — registro, login, completar el reto, ver retroalimentación real de la IA. Se saltan solas (`test.skip`) si no detectan `NEXT_PUBLIC_SUPABASE_URL` y `GEMINI_API_KEY` en `.env.local`, en vez de fallar de forma confusa.
 
 **Lo que no pude hacer**: este entorno no tiene acceso de red para descargar los navegadores que Playwright necesita para ejecutarse (`cdn.playwright.dev` no está en la lista de dominios permitidos aquí). Verifiqué todo lo que sí pude sin eso:
 

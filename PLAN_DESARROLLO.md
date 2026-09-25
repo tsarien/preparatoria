@@ -54,7 +54,7 @@ Decisiones clave:
 | Backend / API | Next.js Route Handlers | Evita mantener un servidor aparte; suficiente para la lógica de negocio del MVP |
 | Base de datos | PostgreSQL (vía Supabase) | Relacional — importante para la integridad de las transacciones de la billetera virtual; capa gratuita generosa |
 | Autenticación | Supabase Auth | Registro, login y verificación de correo listos para usar; se puede construir el flujo de consentimiento del acudiente encima |
-| IA / tutor adaptativo | API de Claude (Anthropic) | Soporta salidas estructuradas (tool use), no solo texto libre — clave para que la retroalimentación de un reto sea procesable por tu código (puntaje, categoría de error, ajuste de dificultad), no solo un párrafo |
+| IA / tutor adaptativo | API de Gemini (Google AI Studio) | Soporta salidas estructuradas nativas (JSON Schema), no solo texto libre — clave para que la retroalimentación de un reto sea procesable por tu código (puntaje, categoría de error, ajuste de dificultad), no solo un párrafo. Se eligió sobre la API de Claude porque su capa gratuita no pide tarjeta de crédito, algo importante para que un profesor/jurado pueda probar la app sin fricción |
 | Notificaciones | Web Push (service worker) + correo de respaldo | Coherente con el enfoque PWA, sin depender de tiendas de apps |
 | Hosting frontend/API | Vercel (capa gratuita) | Despliegue automático desde GitHub, sin configurar servidores |
 | Hosting datos/backend | Supabase Cloud (capa gratuita) | DB + Auth + Storage + Edge Functions (para los eventos diarios) en un solo lugar |
@@ -67,11 +67,11 @@ Decisiones clave:
 
 ## 3. Arquitectura general y estructura de carpetas
 
-El diagrama de arriba resume el flujo: **Cliente (PWA) → Servidor/API → Supabase + Claude API → Notificaciones**. En texto:
+El diagrama de arriba resume el flujo: **Cliente (PWA) → Servidor/API → Supabase + Gemini API → Notificaciones**. En texto:
 
 1. El estudiante interactúa con la PWA (Next.js) en su navegador o desde el ícono instalado en su celular.
 2. Cada acción relevante (responder un reto, tomar una decisión en una simulación) llama a un endpoint del servidor (Next.js Route Handlers).
-3. El servidor lee/escribe en Supabase (perfil, billetera, progreso) y, cuando corresponde, llama a la API de Claude para generar retroalimentación o sostener una simulación conversacional (el arrendador, el entrevistador, el estafador).
+3. El servidor lee/escribe en Supabase (perfil, billetera, progreso) y, cuando corresponde, llama a la API de Gemini para generar retroalimentación o sostener una simulación conversacional (el arrendador, el entrevistador, el estafador).
 4. Una función programada en Supabase (Edge Function + cron) genera eventos aleatorios diarios y dispara notificaciones hacia el estudiante.
 
 ### Estructura de carpetas sugerida
@@ -85,7 +85,7 @@ El diagrama de arriba resume el flujo: **Cliente (PWA) → Servidor/API → Supa
 /components                → componentes de UI reutilizables
 /lib
   /ai
-    client.ts              → configuración del SDK de Anthropic
+    client.ts              → configuración del SDK de Gemini (@google/genai)
     /prompts                → un archivo por personaje: tutor.ts, arrendador.ts, entrevistador.ts, evaluador-estafa.ts
     /schemas                → definiciones de las salidas estructuradas de cada personaje
   wallet.ts                 → lógica del motor de billetera virtual (Fase 2)
@@ -177,7 +177,7 @@ Las tablas `modulos`, `retos`, `progreso_usuario_reto`, `eventos_aleatorios` y `
 
 ## 5. Capa de IA: tutor adaptativo y personajes
 
-La IA cumple tres roles distintos en la app (según el contexto del proyecto): dar retroalimentación, ajustar dificultad, y actuar como personaje dentro de una simulación. Para que esto sea confiable y no solo "texto bonito", cada interacción con la IA debe devolver una **salida estructurada** (usando tool use / function calling de la API de Claude), no solo un mensaje de chat libre.
+La IA cumple tres roles distintos en la app (según el contexto del proyecto): dar retroalimentación, ajustar dificultad, y actuar como personaje dentro de una simulación. Para que esto sea confiable y no solo "texto bonito", cada interacción de evaluación con la IA debe devolver una **salida estructurada** (usando el soporte nativo de JSON Schema de la API de Gemini — `responseMimeType` + `responseJsonSchema`), no solo un mensaje de chat libre. Las simulaciones conversacionales (el arrendador, el estafador) sí son texto libre a propósito — ahí lo que se estructura es el guion mediante el system prompt, no la respuesta.
 
 ### Patrón de diseño
 
@@ -203,7 +203,7 @@ Ningún componente de UI debe construir el prompt directamente — siempre llama
 
 ### Control de costos
 
-- Usa el modelo más económico de la familia Claude para evaluaciones simples y estructuradas, y reserva el modelo más capaz para simulaciones conversacionales largas o matizadas (la negociación con el arrendador, la entrevista). Al momento de escribir esto, los modelos vigentes son Claude Haiku 4.5 (rápido/económico) y Claude Sonnet 5 (más capaz) — confirma los modelos y tarifas actuales en la consola de Anthropic (console.anthropic.com) antes de implementar, ya que esto cambia con el tiempo.
+- Usa el modelo más económico de la familia Gemini para evaluaciones simples y estructuradas, y uno algo más capaz para simulaciones conversacionales (la negociación con el arrendador, la entrevista) — pero sin salirte de la familia **Flash**: los modelos **Pro** de Gemini dejaron de estar en la capa gratuita desde abril de 2026, y mantener la capa gratuita (sin tarjeta) es justamente el motivo por el que este proyecto usa Gemini. Al momento de escribir esto, los modelos usados son `gemini-flash-lite-latest` (evaluaciones) y `gemini-flash-latest` (simulaciones) — son *alias* flotantes que Google reapunta al Flash/Flash-Lite estable vigente, para no depender de una versión con fecha que se puede apagar. Confirma el catálogo y tu cuota real en [Google AI Studio](https://aistudio.google.com) (`ai.google.dev/gemini-api/docs/models` y `aistudio.google.com/rate-limit`) antes de sustentar — esto cambia seguido y Google ya no publica una tabla fija de límites gratuitos, cada proyecto ve su propia cuota en vivo.
 - Usa *prompt caching* para el system prompt de cada personaje (se repite en cada llamada) — reduce costo y latencia.
 - Define un límite de intentos de IA por reto por día por estudiante. Además de controlar costo, tiene sentido pedagógico: evita que el estudiante spamee intentos sin pensar.
 
@@ -248,7 +248,7 @@ Al tratarse de menores de edad, esto no es opcional. Consideraciones arquitectó
 - **Minimización de datos**: no se recolecta más información de la necesaria (sin número de identificación, sin dirección física).
 - **RLS por defecto**: cada estudiante solo accede a sus propios datos; cualquier vista agregada (rankings) se hace mediante una vista/consulta que expone solo lo estrictamente necesario (nombre y XP total, no datos personales).
 - **Derecho de acceso/eliminación**: aunque para el MVP un proceso manual (vía administrador) es aceptable, documenta la intención de dar soporte a solicitudes de acceso y borrado de datos.
-- **Variables de entorno y secretos**: las llaves de la API de Claude y las credenciales de Supabase nunca se exponen en el cliente; solo se usan desde el servidor.
+- **Variables de entorno y secretos**: las llaves de la API de Gemini y las credenciales de Supabase nunca se exponen en el cliente; solo se usan desde el servidor.
 
 ---
 
@@ -340,7 +340,7 @@ Copia esto al inicio de una sesión nueva de IA (chat o Claude Code), completand
 ```
 CONTEXTO DEL PROYECTO:
 Estoy construyendo "preparatorIA", una app educativa (Next.js + TypeScript +
-Tailwind + Supabase + API de Claude) que enseña habilidades de vida adulta a
+Tailwind + Supabase + API de Gemini) que enseña habilidades de vida adulta a
 adolescentes colombianos (15-18 años) mediante retos gamificados.
 
 ESTADO ACTUAL (actualízalo cada vez):

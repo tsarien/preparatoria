@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { EncabezadoPagina, ICONO_MODULO } from "@/components/encabezado-pagina";
+import { RetoLista } from "@/components/reto-lista";
 import type { Modulo, Reto, ProgresoUsuarioReto } from "@/types/database";
 
 type RetoResumen = Pick<Reto, "id" | "slug" | "nombre" | "dificultad" | "orden">;
@@ -42,43 +41,19 @@ export default async function ModuloPresupuestoPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-12">
-      <header className="flex flex-col gap-1">
-        <Link href="/dashboard" className="text-sm text-ink-soft underline underline-offset-2">
-          ← Volver al dashboard
-        </Link>
-        <span className="font-mono text-xs uppercase tracking-widest text-ink-soft">Fase 3 · Dinero</span>
-        <h1 className="font-display text-3xl font-semibold text-ink">
-          {modulo?.nombre ?? "Presupuesto personal"}
-        </h1>
-        <p className="text-ink-soft">{modulo?.descripcion}</p>
-      </header>
+      <EncabezadoPagina
+        volverHref="/dashboard"
+        volverEtiqueta="Volver al dashboard"
+        titulo={modulo?.nombre ?? "Presupuesto personal"}
+        descripcion={modulo?.descripcion}
+        icono={ICONO_MODULO["presupuesto-personal"]}
+      />
 
-      <div className="flex flex-col gap-3">
-        {(retos ?? []).map((reto, i) => {
-          const progreso = progresoPorReto.get(reto.id);
-          const completado = progreso?.estado === "completado";
-          return (
-            <Link key={reto.id} href={`/dashboard/modulos/presupuesto-personal/${reto.slug}`}>
-              <Card className="transition-colors hover:border-ink/30">
-                <CardContent className="flex items-center justify-between gap-3 p-4">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="font-mono text-sm text-ink-soft">{i + 1}</span>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="break-words font-display text-base font-medium text-ink">{reto.nombre}</span>
-                      <span className="text-xs text-ink-soft">Dificultad: {reto.dificultad}</span>
-                    </div>
-                  </div>
-                  {completado ? (
-                    <Badge tone="growth">Completado · {progreso?.puntaje}/100</Badge>
-                  ) : (
-                    <Badge tone="ink">Pendiente</Badge>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
+      <RetoLista
+        retos={retos ?? []}
+        progresoPorReto={progresoPorReto}
+        basePath="/dashboard/modulos/presupuesto-personal"
+      />
     </main>
   );
 }

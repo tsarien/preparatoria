@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRetoPorSlug, getProgreso } from "@/lib/retos";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { EncabezadoPagina, ICONO_MODULO } from "@/components/encabezado-pagina";
 import { CrearMetaForm } from "./crear-meta-form";
 import { MetaTracker } from "./meta-tracker";
 import type { MetaAhorro } from "@/types/database";
@@ -37,17 +37,13 @@ export default async function MetaDeAhorroPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-6 py-12">
-      <header className="flex flex-col gap-1">
-        <Link
-          href="/dashboard/modulos/ahorro-metas"
-          className="text-sm text-ink-soft underline underline-offset-2"
-        >
-          ← Ahorro con metas
-        </Link>
-        <h1 className="font-display text-2xl font-semibold text-ink">
-          {meta ? meta.nombre : "Crea tu meta de ahorro"}
-        </h1>
-      </header>
+      <EncabezadoPagina
+        volverHref="/dashboard/modulos/ahorro-metas"
+        volverEtiqueta="Ahorro con metas"
+        titulo={meta ? meta.nombre : "Crea tu meta de ahorro"}
+        icono={ICONO_MODULO["ahorro-metas"]}
+        variante="compacta"
+      />
 
       <Card>
         {!meta && (

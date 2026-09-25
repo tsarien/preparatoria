@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { EncabezadoPagina } from "@/components/encabezado-pagina";
 import { EventosLista } from "./eventos-lista";
 import type { EventoAleatorio } from "@/types/database";
 
@@ -31,14 +31,13 @@ export default async function EventosPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-6 py-12">
-      <header className="flex flex-col gap-1">
-        <Link href="/dashboard" className="text-sm text-ink-soft underline underline-offset-2">
-          ← Volver al dashboard
-        </Link>
-        <span className="font-mono text-xs uppercase tracking-widest text-ink-soft">Fase 7 · Vida simulada</span>
-        <h1 className="font-display text-3xl font-semibold text-ink">Tus eventos</h1>
-        <p className="text-ink-soft">Cosas que le pasan a tu personaje mientras no estás mirando.</p>
-      </header>
+      <EncabezadoPagina
+        volverHref="/dashboard"
+        volverEtiqueta="Volver al dashboard"
+        titulo="Tus eventos"
+        descripcion="Cosas que le pasan a tu personaje mientras no estás mirando."
+        icono="/mascota/mascota-neutral.png"
+      />
 
       <EventosLista eventosIniciales={eventos ?? []} />
     </main>

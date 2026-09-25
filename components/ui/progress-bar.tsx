@@ -5,6 +5,9 @@ interface ProgressBarProps {
   max: number;
   label?: string;
   className?: string;
+  /** Opt-in: la barra "se llena" desde 0 al aparecer. Apagado por defecto para no
+   *  cambiar las pantallas que ya usan la barra sin este efecto. */
+  animado?: boolean;
 }
 
 /**
@@ -13,7 +16,7 @@ interface ProgressBarProps {
  * usamos para montos de dinero, para que "progreso" y "plata" se lean
  * con la misma voz visual en toda la app.
  */
-export function ProgressBar({ value, max, label, className }: ProgressBarProps) {
+export function ProgressBar({ value, max, label, className, animado = false }: ProgressBarProps) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
 
   return (
@@ -34,7 +37,10 @@ export function ProgressBar({ value, max, label, className }: ProgressBarProps) 
         className="h-2 w-full overflow-hidden rounded-full bg-ink/10"
       >
         <div
-          className="h-full rounded-full bg-primary transition-[width] duration-300"
+          className={cn(
+            "h-full rounded-full bg-primary transition-[width] duration-300",
+            animado && "animate-bar-fill"
+          )}
           style={{ width: `${pct}%` }}
         />
       </div>

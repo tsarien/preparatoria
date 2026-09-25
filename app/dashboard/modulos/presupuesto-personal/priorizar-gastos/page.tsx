@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRetoPorSlug, getProgreso } from "@/lib/retos";
+import { EncabezadoPagina, ICONO_MODULO } from "@/components/encabezado-pagina";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { FeedbackCard } from "@/components/feedback-card";
 import { PriorizarGastosForm } from "./priorizar-gastos-form";
@@ -25,15 +25,13 @@ export default async function PriorizarGastosPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-6 py-12">
-      <header className="flex flex-col gap-1">
-        <Link
-          href="/dashboard/modulos/presupuesto-personal"
-          className="text-sm text-ink-soft underline underline-offset-2"
-        >
-          ← Presupuesto personal
-        </Link>
-        <h1 className="font-display text-2xl font-semibold text-ink">Prioriza tus gastos</h1>
-      </header>
+      <EncabezadoPagina
+        volverHref="/dashboard/modulos/presupuesto-personal"
+        volverEtiqueta="Presupuesto personal"
+        titulo="Prioriza tus gastos"
+        icono={ICONO_MODULO["presupuesto-personal"]}
+        variante="compacta"
+      />
 
       <Card>
         <CardHeader>

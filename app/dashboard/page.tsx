@@ -5,9 +5,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { xpEnNivelActual, XP_POR_NIVEL } from "@/lib/gamification";
 import type { Perfil, Personaje } from "@/types/database";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
+import { CaminoModulos } from "@/components/dashboard/camino-modulos";
 import { cerrarSesion } from "./actions";
 
 const MODULOS_MVP = [
@@ -134,33 +134,8 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Módulos del MVP */}
-      <div className="flex flex-col gap-3">
-        <h2 className="font-display text-lg font-medium text-ink">Tus módulos</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {MODULOS_MVP.map((m) => {
-            const contenido = (
-              <Card className={m.disponible ? "transition-colors hover:border-ink/30" : "opacity-70"}>
-                <CardContent className="flex flex-col gap-2 p-4">
-                  <div className="flex items-center justify-between">
-                    <Badge tone="ink">{m.grupo}</Badge>
-                    {m.icono && <Image src={m.icono} alt="" width={200} height={160} className="h-9 w-auto" />}
-                  </div>
-                  <p className="font-display text-base font-medium text-ink">{m.nombre}</p>
-                  <p className="text-xs text-ink-soft">{m.disponible ? "Disponible" : "Próximamente"}</p>
-                </CardContent>
-              </Card>
-            );
-            return m.disponible && m.slug ? (
-              <Link key={m.nombre} href={`/dashboard/modulos/${m.slug}`}>
-                {contenido}
-              </Link>
-            ) : (
-              <div key={m.nombre}>{contenido}</div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Módulos del MVP — camino de progreso */}
+      <CaminoModulos modulos={MODULOS_MVP} />
     </main>
   );
 }

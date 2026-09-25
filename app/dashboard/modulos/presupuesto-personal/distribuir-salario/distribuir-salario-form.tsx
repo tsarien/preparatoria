@@ -24,7 +24,7 @@ export function DistribuirSalarioForm({
   const restante = salarioMensual - asignado;
 
   if (state.feedback) {
-    return <FeedbackCard feedback={state.feedback} />;
+    return <FeedbackCard feedback={state.feedback} reciente />;
   }
 
   return (
@@ -68,7 +68,7 @@ export function DistribuirSalarioForm({
         </p>
       )}
 
-      <Button type="submit" disabled={isPending || restante !== 0}>
+      <Button type="submit" disabled={isPending || restante !== 0} className="press">
         {isPending ? "Enviando…" : "Confirmar distribución"}
       </Button>
     </form>

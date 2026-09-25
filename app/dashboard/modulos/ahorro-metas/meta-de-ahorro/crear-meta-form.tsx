@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { crearMeta, type CrearMetaState } from "./actions";
 import { Button } from "@/components/ui/button";
 import { FeedbackCard } from "@/components/feedback-card";
+import { marcarFeedbackReciente } from "@/lib/celebrar";
 
 const ESTADO_INICIAL: CrearMetaState = {};
 
@@ -15,8 +16,8 @@ export function CrearMetaForm() {
   if (state.feedback) {
     return (
       <div className="flex flex-col gap-3">
-        <FeedbackCard feedback={state.feedback} />
-        <Button type="button" variant="outline" onClick={() => router.refresh()}>
+        <FeedbackCard feedback={state.feedback} reciente />
+        <Button type="button" variant="outline" className="press" onClick={() => router.refresh()}>
           Ver mi meta
         </Button>
       </div>
@@ -24,7 +25,13 @@ export function CrearMetaForm() {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form
+      action={formAction}
+      // crearMeta revalida la página: este formulario se desmonta antes de mostrar su propia
+      // respuesta y el tutor aparece en MetaTracker. La marca le avisa que es reciente.
+      onSubmit={() => marcarFeedbackReciente("meta-de-ahorro")}
+      className="flex flex-col gap-4"
+    >
       <div className="flex flex-col gap-1.5">
         <label htmlFor="nombre" className="text-sm font-medium text-ink">
           ¿Para qué estás ahorrando?
@@ -47,7 +54,7 @@ export function CrearMetaForm() {
           id="monto_objetivo"
           name="monto_objetivo"
           type="number"
-          min="1"
+          min="1000"
           step="1000"
           placeholder="15000000"
           required
@@ -63,7 +70,7 @@ export function CrearMetaForm() {
           id="aporte_mensual"
           name="aporte_mensual"
           type="number"
-          min="1"
+          min="1000"
           step="1000"
           placeholder="150000"
           required
@@ -77,7 +84,7 @@ export function CrearMetaForm() {
         </p>
       )}
 
-      <Button type="submit" disabled={isPending} className="self-start">
+      <Button type="submit" disabled={isPending} className="press self-start">
         {isPending ? "Creando…" : "Crear meta"}
       </Button>
     </form>

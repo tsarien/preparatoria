@@ -8,6 +8,7 @@ import type { TutorFeedback } from "@/lib/ai/schemas/tutor";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FeedbackCard } from "@/components/feedback-card";
+import { BurbujaChat, IndicadorEscribiendo } from "@/components/chat-ui";
 
 interface Props {
   retoSlug: string;
@@ -37,8 +38,13 @@ export function EscenarioEstafa({
 
   const mensajesEstudiante = historial.filter((m) => m.autor === "estudiante").length;
 
+  // Mientras la IA responde un mensaje del estudiante (no mientras evalúa la decisión final).
+  const ultimo = historial[historial.length - 1];
+  const esperandoRespuesta = isPending && !mostrarDecision && ultimo?.autor === "estudiante";
+
   if (feedback) {
-    return <FeedbackCard feedback={feedback} />;
+    // Si es el mismo objeto que llegó por props es historial; si no, lo acaba de dar el tutor.
+    return <FeedbackCard feedback={feedback} reciente={feedback !== feedbackPrevio} />;
   }
 
   function enviarMensaje() {
@@ -77,7 +83,7 @@ export function EscenarioEstafa({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="rounded-md border border-line bg-paper-raised p-3">
+      <div className="rounded-2xl border border-line bg-paper-raised p-3.5">
         <div className="mb-2 flex items-center justify-between">
           <Badge tone="ink">{canal}</Badge>
           <span className="text-xs text-ink-soft">{remitente}</span>
@@ -88,17 +94,11 @@ export function EscenarioEstafa({
       {interactivo && (
         <div className="flex flex-col gap-2" aria-live="polite" aria-label="Conversación">
           {historial.map((m, i) => (
-            <div
-              key={i}
-              className={`max-w-[85%] rounded-md px-3 py-2 text-sm ${
-                m.autor === "estudiante"
-                  ? "self-end bg-ink text-paper"
-                  : "self-start border border-line bg-paper-raised text-ink"
-              }`}
-            >
+            <BurbujaChat key={i} propia={m.autor === "estudiante"}>
               {m.texto}
-            </div>
+            </BurbujaChat>
           ))}
+          {esperandoRespuesta && <IndicadorEscribiendo />}
 
           {!mostrarDecision && (
             <div className="mt-2 flex gap-2">
@@ -110,11 +110,12 @@ export function EscenarioEstafa({
                 placeholder={
                   puedeEnviarMensaje(mensajesEstudiante) ? "Escríbele algo…" : "Ya usaste tus mensajes"
                 }
-                className="h-10 flex-1 rounded-md border border-line bg-paper-raised px-3 text-sm text-ink outline-none focus-visible:border-gold disabled:opacity-50"
+                className="h-10 min-w-0 flex-1 rounded-md border border-line bg-paper-raised px-3 text-sm text-ink outline-none focus-visible:border-gold disabled:opacity-50"
               />
               <Button
                 type="button"
                 variant="outline"
+                className="press"
                 onClick={enviarMensaje}
                 disabled={!puedeEnviarMensaje(mensajesEstudiante) || isPending}
               >
@@ -143,6 +144,7 @@ export function EscenarioEstafa({
               type="button"
               variant={diceEstafa === "si" ? "gold" : "outline"}
               size="sm"
+              className="press"
               onClick={() => setDiceEstafa("si")}
             >
               Sí, es estafa
@@ -151,6 +153,7 @@ export function EscenarioEstafa({
               type="button"
               variant={diceEstafa === "no" ? "gold" : "outline"}
               size="sm"
+              className="press"
               onClick={() => setDiceEstafa("no")}
             >
               No, es legítimo
@@ -170,7 +173,7 @@ export function EscenarioEstafa({
             </p>
           )}
 
-          <Button type="button" onClick={confirmarDecision} disabled={isPending} className="self-start">
+          <Button type="button" onClick={confirmarDecision} disabled={isPending} className="press self-start">
             {isPending ? "Enviando…" : "Confirmar mi decisión"}
           </Button>
         </div>

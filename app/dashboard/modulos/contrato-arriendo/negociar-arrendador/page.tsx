@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRetoPorSlug, getProgreso } from "@/lib/retos";
+import { EncabezadoPagina, ICONO_MODULO } from "@/components/encabezado-pagina";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { NegociacionArrendador } from "./negociacion-arrendador";
 import type { TutorFeedback } from "@/lib/ai/schemas/tutor";
@@ -21,15 +21,13 @@ export default async function NegociarArrendadorPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-6 py-12">
-      <header className="flex flex-col gap-1">
-        <Link
-          href="/dashboard/modulos/contrato-arriendo"
-          className="text-sm text-ink-soft underline underline-offset-2"
-        >
-          ← Contrato de arriendo
-        </Link>
-        <h1 className="font-display text-2xl font-semibold text-ink">Negocia con el arrendador</h1>
-      </header>
+      <EncabezadoPagina
+        volverHref="/dashboard/modulos/contrato-arriendo"
+        volverEtiqueta="Contrato de arriendo"
+        titulo="Negocia con el arrendador"
+        icono={ICONO_MODULO["contrato-arriendo"]}
+        variante="compacta"
+      />
 
       <Card>
         <CardHeader>

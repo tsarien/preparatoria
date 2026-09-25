@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -8,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
+import { EncabezadoPagina } from "@/components/encabezado-pagina";
 import { BilleteraForm } from "./billetera-form";
 import { simularXp } from "./actions";
 
@@ -41,15 +41,12 @@ export default async function BilleteraPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-12">
-      <header className="flex flex-col gap-1">
-        <Link href="/dashboard" className="text-sm text-ink-soft underline underline-offset-2">
-          ← Volver al dashboard
-        </Link>
-        <span className="font-mono text-xs uppercase tracking-widest text-ink-soft">
-          Fase 2 · Pantalla de prueba
-        </span>
-        <h1 className="font-display text-3xl font-semibold text-ink">Estado financiero</h1>
-      </header>
+      <EncabezadoPagina
+        volverHref="/dashboard"
+        volverEtiqueta="Volver al dashboard"
+        titulo="Estado financiero"
+        icono="/iconos/icono-saldo.png"
+      />
 
       {/* Resumen + XP */}
       <Card>
@@ -67,9 +64,10 @@ export default async function BilleteraPage() {
             value={xpEnNivelActual(personaje?.xp ?? 0)}
             max={XP_POR_NIVEL}
             label={`Nivel ${personaje?.nivel ?? 1}`}
+            animado
           />
           <form action={simularXp}>
-            <Button type="submit" variant="outline" size="sm">
+            <Button type="submit" variant="outline" size="sm" className="press">
               Otorgar 50 XP (prueba)
             </Button>
           </form>

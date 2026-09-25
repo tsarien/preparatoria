@@ -1,6 +1,11 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { debeCelebrar, lanzarConfeti } from "@/lib/celebrar";
 import type { TutorFeedback } from "@/lib/ai/schemas/tutor";
 
 const CATEGORIA_LABEL: Record<string, string> = {
@@ -14,12 +19,35 @@ const CATEGORIA_LABEL: Record<string, string> = {
   otro: "Para revisar",
 };
 
-export function FeedbackCard({ feedback }: { feedback: TutorFeedback }) {
-  const tono = feedback.puntaje >= 70 ? "growth" : feedback.puntaje >= 40 ? "gold" : "alert";
-  const celebra = feedback.puntaje >= 70;
+/**
+ * `reciente` distingue una respuesta que el tutor acaba de dar (el estudiante
+ * acaba de enviar su decisión) de una que solo se está mostrando de nuevo
+ * desde el historial (ej. al volver a abrir un reto ya completado).
+ *
+ * Solo la reciente anima su entrada, hace "pop" con la mascota y, si el puntaje
+ * es bueno, lanza confeti. Sin esta distinción, el confeti saltaría cada vez
+ * que alguien abre una página con un reto ya hecho.
+ */
+export function FeedbackCard({ feedback, reciente = false }: { feedback: TutorFeedback; reciente?: boolean }) {
+  const celebra = debeCelebrar(feedback.puntaje);
+  const tono = celebra ? "growth" : feedback.puntaje >= 40 ? "gold" : "alert";
+
+  // El ref evita un doble disparo: en desarrollo (Strict Mode) React ejecuta
+  // los efectos dos veces, y el confeti saldría duplicado.
+  const yaCelebro = useRef(false);
+  const tarjeta = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!reciente || yaCelebro.current) return;
+    yaCelebro.current = true;
+    // Al reemplazar un formulario largo por la respuesta, en celular la tarjeta
+    // puede quedar fuera de pantalla: la traemos a la vista solo si hace falta.
+    const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    tarjeta.current?.scrollIntoView({ behavior: reducido ? "auto" : "smooth", block: "nearest" });
+    if (celebra) void lanzarConfeti();
+  }, [reciente, celebra]);
 
   return (
-    <Card className="border-2 border-ink/10" role="status" aria-live="polite">
+    <Card ref={tarjeta} className={cn("border-2 border-ink/10", reciente && "animate-fade-up")} role="status" aria-live="polite">
       <CardContent className="flex flex-col gap-3 pt-5">
         <div className="flex items-center gap-3">
           <Image
@@ -27,7 +55,7 @@ export function FeedbackCard({ feedback }: { feedback: TutorFeedback }) {
             alt=""
             width={320}
             height={315}
-            className="h-14 w-auto shrink-0"
+            className={cn("h-14 w-auto shrink-0", reciente && "animate-pop")}
           />
           <div className="flex flex-1 items-center justify-between gap-2">
             <span className="font-display text-sm font-medium uppercase tracking-wide text-ink-soft">

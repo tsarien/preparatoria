@@ -13,7 +13,7 @@ export function GastosHormigaForm({ items }: { items: GastoHormigaItem[] }) {
   const [state, formAction, isPending] = useActionState(enviarConItems, ESTADO_INICIAL);
 
   if (state.feedback) {
-    return <FeedbackCard feedback={state.feedback} />;
+    return <FeedbackCard feedback={state.feedback} reciente />;
   }
 
   return (
@@ -42,7 +42,7 @@ export function GastosHormigaForm({ items }: { items: GastoHormigaItem[] }) {
         </p>
       )}
 
-      <Button type="submit" disabled={isPending}>
+      <Button type="submit" disabled={isPending} className="press">
         {isPending ? "Revisando…" : "Ver resultado"}
       </Button>
     </form>

@@ -13,7 +13,7 @@ export function LeerContratoForm({ clausulas, preguntas }: { clausulas: Clausula
   const [state, formAction, isPending] = useActionState(enviarConDatos, ESTADO_INICIAL);
 
   if (state.feedback) {
-    return <FeedbackCard feedback={state.feedback} />;
+    return <FeedbackCard feedback={state.feedback} reciente />;
   }
 
   return (
@@ -64,7 +64,7 @@ export function LeerContratoForm({ clausulas, preguntas }: { clausulas: Clausula
         </p>
       )}
 
-      <Button type="submit" disabled={isPending} className="self-start">
+      <Button type="submit" disabled={isPending} className="press self-start">
         {isPending ? "Revisando…" : "Enviar respuestas"}
       </Button>
     </form>
