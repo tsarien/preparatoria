@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { ApiError } from "@google/genai";
 
 const generateContentMock = vi.fn();
-vi.mock("@google/genai", () => ({
-  GoogleGenAI: class {
-    models = { generateContent: generateContentMock };
-  },
-}));
+vi.mock("@google/genai", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@google/genai")>();
+  return {
+    ...real,
+    GoogleGenAI: class {
+      models = { generateContent: generateContentMock };
+    },
+  };
+});
 
 const ORIGINAL_ENV = process.env.GEMINI_API_KEY;
 const ESCENARIO = {
@@ -56,5 +61,49 @@ describe("simularEstafador (migración a Gemini)", () => {
 
     expect(resultado.success).toBe(false);
     expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it("reproduce el incidente del 24 sep 2026: un 503 aislado se reintenta y responde bien", async () => {
+    generateContentMock
+      .mockRejectedValueOnce(
+        new ApiError({
+          message: '{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}',
+          status: 503,
+        })
+      )
+      .mockResolvedValueOnce({
+        candidates: [{ finishReason: "STOP" }],
+        text: "Tranquilo, es de confianza, solo confirma tus datos.",
+      });
+
+    const { simularEstafador } = await import("./estafador");
+    const resultado = await simularEstafador(ESCENARIO, [
+      { autor: "estafador", texto: ESCENARIO.mensajeInicial },
+      { autor: "estudiante", texto: "¿Esto es una estafa?" },
+    ]);
+
+    expect(resultado.success).toBe(true);
+    expect(generateContentMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("si el 503 persiste, el estudiante ve un mensaje amigable — nunca el JSON crudo", async () => {
+    generateContentMock.mockRejectedValue(
+      new ApiError({
+        message: '{"error":{"code":503,"message":"high demand","status":"UNAVAILABLE"}}',
+        status: 503,
+      })
+    );
+
+    const { simularEstafador } = await import("./estafador");
+    const resultado = await simularEstafador(ESCENARIO, [
+      { autor: "estafador", texto: ESCENARIO.mensajeInicial },
+      { autor: "estudiante", texto: "¿Esto es una estafa?" },
+    ]);
+
+    expect(resultado.success).toBe(false);
+    if (!resultado.success) {
+      expect(resultado.error).not.toContain("{");
+      expect(resultado.error).not.toContain("UNAVAILABLE");
+    }
   });
 });

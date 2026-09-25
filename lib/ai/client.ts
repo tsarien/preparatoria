@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ApiError } from "@google/genai";
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -7,6 +7,59 @@ export const isAiConfigured = Boolean(apiKey);
 export function getGeminiClient(): GoogleGenAI | null {
   if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
+}
+
+/**
+ * Códigos HTTP que consideramos transitorios (vale la pena reintentar):
+ * 503 = modelo saturado ("high demand", ver incidente del 24 sep 2026 en el README),
+ * 429 = límite de la capa gratuita alcanzado por un momento.
+ * Cualquier otro código (401, 400, etc.) es un problema real — reintentarlo no ayuda.
+ */
+const CODIGOS_TRANSITORIOS = [429, 503];
+const MAX_REINTENTOS = 2;
+const ESPERA_BASE_MS = 700;
+
+function esperar(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Reintenta una llamada a la API de Gemini cuando falla por saturación temporal
+ * del modelo (503) o límite de tasa (429), con backoff exponencial corto. No
+ * reintenta ningún otro tipo de error. Pensado para las 3 funciones de lib/ai/prompts/:
+ * const respuesta = await llamarConReintento(() => client.models.generateContent({...}));
+ */
+export async function llamarConReintento<T>(llamada: () => Promise<T>): Promise<T> {
+  let intento = 0;
+  for (;;) {
+    try {
+      return await llamada();
+    } catch (error) {
+      const esTransitorio = error instanceof ApiError && CODIGOS_TRANSITORIOS.includes(error.status);
+      if (!esTransitorio || intento >= MAX_REINTENTOS) throw error;
+      await esperar(ESPERA_BASE_MS * 2 ** intento);
+      intento++;
+    }
+  }
+}
+
+/**
+ * Convierte cualquier error de la API de Gemini en un mensaje que un estudiante
+ * de colegio puede leer — nunca el JSON crudo del error. El detalle técnico se
+ * registra en el log del servidor (nunca llega al cliente) para que tú puedas
+ * depurarlo sin exponerlo en la UI.
+ */
+export function mensajeErrorIA(error: unknown): string {
+  console.error("[preparatorIA] Error al llamar a la API de Gemini:", error);
+  if (error instanceof ApiError) {
+    if (error.status === 503) {
+      return "El servicio de IA está saturado en este momento. Espera unos segundos y vuelve a intentar.";
+    }
+    if (error.status === 429) {
+      return "Se alcanzó el límite de uso gratuito de la IA por ahora. Espera un momento y vuelve a intentar.";
+    }
+  }
+  return "No se pudo contactar a la IA en este momento. Intenta de nuevo en unos segundos.";
 }
 
 /**

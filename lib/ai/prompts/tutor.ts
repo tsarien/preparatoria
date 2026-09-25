@@ -1,4 +1,4 @@
-import { getGeminiClient, isAiConfigured, MODELO_TUTOR } from "../client";
+import { getGeminiClient, isAiConfigured, llamarConReintento, mensajeErrorIA, MODELO_TUTOR } from "../client";
 import { tutorFeedbackSchema, type TutorFeedback } from "../schemas/tutor";
 
 const SYSTEM_PROMPT = `Eres el tutor de preparatorIA, una app que enseña educación financiera
@@ -53,22 +53,24 @@ export async function getTutorFeedback(input: TutorFeedbackInput): Promise<Resul
   }
 
   try {
-    const response = await client.models.generateContent({
-      model: MODELO_TUTOR,
-      contents: `Reto: ${input.retoNombre}
+    const response = await llamarConReintento(() =>
+      client.models.generateContent({
+        model: MODELO_TUTOR,
+        contents: `Reto: ${input.retoNombre}
 
 Contexto del reto: ${input.contextoReto}
 
 Decisión del estudiante: ${input.decisionEstudiante}
 
 Evalúa esta decisión específica y da retroalimentación.`,
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        maxOutputTokens: 500,
-        responseMimeType: "application/json",
-        responseJsonSchema: tutorFeedbackSchema,
-      },
-    });
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+          maxOutputTokens: 500,
+          responseMimeType: "application/json",
+          responseJsonSchema: tutorFeedbackSchema,
+        },
+      })
+    );
 
     if (response.promptFeedback?.blockReason) {
       return { success: false, error: "La IA no pudo generar retroalimentación para esta solicitud." };
@@ -96,9 +98,6 @@ Evalúa esta decisión específica y da retroalimentación.`,
       feedback: { ...feedback, puntaje: Math.max(0, Math.min(100, Math.round(feedback.puntaje))) },
     };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Error inesperado al contactar la IA.",
-    };
+    return { success: false, error: mensajeErrorIA(error) };
   }
 }

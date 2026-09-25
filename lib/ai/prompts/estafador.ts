@@ -1,4 +1,4 @@
-import { getGeminiClient, isAiConfigured, MODELO_PERSONAJE } from "../client";
+import { getGeminiClient, isAiConfigured, llamarConReintento, mensajeErrorIA, MODELO_PERSONAJE } from "../client";
 
 export interface MensajeChat {
   autor: "estafador" | "estudiante";
@@ -60,17 +60,19 @@ export async function simularEstafador(
   }
 
   try {
-    const response = await client.models.generateContent({
-      model: MODELO_PERSONAJE,
-      contents: historial.map((m) => ({
-        role: m.autor === "estudiante" ? "user" : "model",
-        parts: [{ text: m.texto }],
-      })),
-      config: {
-        systemInstruction: construirSystemPrompt(escenario),
-        maxOutputTokens: 200,
-      },
-    });
+    const response = await llamarConReintento(() =>
+      client.models.generateContent({
+        model: MODELO_PERSONAJE,
+        contents: historial.map((m) => ({
+          role: m.autor === "estudiante" ? "user" : "model",
+          parts: [{ text: m.texto }],
+        })),
+        config: {
+          systemInstruction: construirSystemPrompt(escenario),
+          maxOutputTokens: 200,
+        },
+      })
+    );
 
     if (response.promptFeedback?.blockReason) {
       return { success: false, error: "La IA no pudo continuar esta simulación." };
@@ -88,9 +90,6 @@ export async function simularEstafador(
 
     return { success: true, mensaje: texto };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Error inesperado al contactar la IA.",
-    };
+    return { success: false, error: mensajeErrorIA(error) };
   }
 }

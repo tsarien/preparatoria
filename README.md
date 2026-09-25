@@ -349,3 +349,13 @@ Mismo proceso técnico que la primera ronda: recorte por densidad de contenido (
 
 - Las fuentes (Space Grotesk, IBM Plex Sans, IBM Plex Mono) se cargan por `<link>` en `app/layout.tsx`, no con `next/font/google`, para no depender de acceso a Google Fonts durante el build en cualquier entorno restringido. Si más adelante quieres el rendimiento extra de fuentes autoalojadas, es un cambio pequeño.
 - `types/database.ts` está escrito a mano. En cuanto tengas el proyecto de Supabase real, regenera los tipos oficiales con: `npx supabase gen types typescript --project-id TU_PROJECT_ID > types/database.ts` (y ahí sí puedes volver a pasar `<Database>` al cliente en `lib/supabase.ts`).
+
+## Migración de la API de Claude a la API de Gemini
+
+La capa de IA (`lib/ai/`) originalmente usaba la API de Claude (Anthropic). Se migró a la API de Gemini (`@google/genai`, Google AI Studio) para que un profesor o jurado pueda conseguir su propia API key gratis y sin tarjeta de crédito en `aistudio.google.com/apikey`, en vez de tener que comprar créditos. `MODELO_TUTOR` y `MODELO_PERSONAJE` (en `lib/ai/client.ts`) se quedan en la familia **Flash** a propósito — los modelos Pro de Gemini salieron de la capa gratuita en abril de 2026.
+
+**Incidente del 24 de septiembre de 2026**: en la primera prueba en vivo, el módulo de Detectar Estafas devolvió el JSON crudo de un error 503 de Gemini (`"This model is currently experiencing high demand"`) directo en la pantalla del estudiante. Causa: Google AI Studio reporta que sus modelos "gratis" pueden saturarse momentáneamente bajo demanda alta, algo transitorio y del lado de Google, no un problema de configuración. Se corrigió en `lib/ai/client.ts` con dos cambios que aplican a las 3 funciones de IA (`getTutorFeedback`, `simularArrendador`, `simularEstafador`):
+1. `llamarConReintento()` — reintenta automáticamente (hasta 2 veces, con backoff corto) solo los errores transitorios (HTTP 503 y 429). Cualquier otro error (API key inválida, etc.) no se reintenta.
+2. `mensajeErrorIA()` — nunca deja pasar el texto crudo del error del SDK al estudiante; siempre devuelve un mensaje en español entendible, y registra el detalle técnico con `console.error` (visible en los logs del servidor/Vercel, no en el navegador).
+
+Si vuelves a ver un error de IA en producción, revisa primero los logs de Vercel (ahí sí aparece el detalle real gracias al `console.error`) antes de asumir que es un bug de configuración.
