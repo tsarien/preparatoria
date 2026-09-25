@@ -17,7 +17,20 @@ export function getGeminiClient(): GoogleGenAI | null {
  */
 const CODIGOS_TRANSITORIOS = [429, 503];
 const MAX_REINTENTOS = 2;
-const ESPERA_BASE_MS = 700;
+const ESPERA_BASE_MS = 800;
+const JITTER_MAX_MS = 400;
+
+/**
+ * Backoff exponencial + jitter (recomendado por Google para 503/429 — evita que
+ * muchos clientes reintenten en el mismo instante exacto). Los números son a
+ * propósito más cortos que el "1.5s / 3s" que se ve en varios ejemplos: esto corre
+ * dentro de una Server Action que Vercel Hobby corta a los 10s. Con 2 reintentos,
+ * el peor caso de espera pura es ~2.4-3.2s, dejando margen para las 3 llamadas
+ * reales a Gemini. Si subes a Vercel Pro (60s) puedes subir estos valores.
+ */
+function calcularEspera(intento: number): number {
+  return ESPERA_BASE_MS * 2 ** intento + Math.random() * JITTER_MAX_MS;
+}
 
 function esperar(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -37,7 +50,7 @@ export async function llamarConReintento<T>(llamada: () => Promise<T>): Promise<
     } catch (error) {
       const esTransitorio = error instanceof ApiError && CODIGOS_TRANSITORIOS.includes(error.status);
       if (!esTransitorio || intento >= MAX_REINTENTOS) throw error;
-      await esperar(ESPERA_BASE_MS * 2 ** intento);
+      await esperar(calcularEspera(intento));
       intento++;
     }
   }
