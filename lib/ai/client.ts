@@ -10,23 +10,27 @@ export function getGeminiClient(): GoogleGenAI | null {
 }
 
 /**
- * Códigos HTTP que consideramos transitorios (vale la pena reintentar):
- * 503 = modelo saturado ("high demand", ver incidente del 24 sep 2026 en el README),
- * 429 = límite de la capa gratuita alcanzado por un momento.
- * Cualquier otro código (401, 400, etc.) es un problema real — reintentarlo no ayuda.
+ * 503 = modelo saturado ("high demand", ver incidente del 24 sep 2026 en el
+ * README) — vale la pena reintentar, puede resolverse en menos de un segundo.
+ * 429 (límite de RPM/RPD) NO se reintenta: nuestro backoff (bajo 2s) es mucho
+ * más corto que la ventana de 60s de RPM, así que reintentar casi nunca ayuda
+ * y solo gasta otra llamada contra una cuota que ya está justa (ver README,
+ * sección de límites reales medidos en AI Studio: RPM 5 / RPD 20 por modelo).
+ * Cualquier otro código (401, 400, etc.) tampoco se reintenta — no es transitorio.
  */
-const CODIGOS_TRANSITORIOS = [429, 503];
-const MAX_REINTENTOS = 2;
+const CODIGOS_TRANSITORIOS = [503];
+const MAX_REINTENTOS = 1;
 const ESPERA_BASE_MS = 800;
 const JITTER_MAX_MS = 400;
 
 /**
- * Backoff exponencial + jitter (recomendado por Google para 503/429 — evita que
- * muchos clientes reintenten en el mismo instante exacto). Los números son a
- * propósito más cortos que el "1.5s / 3s" que se ve en varios ejemplos: esto corre
- * dentro de una Server Action que Vercel Hobby corta a los 10s. Con 2 reintentos,
- * el peor caso de espera pura es ~2.4-3.2s, dejando margen para las 3 llamadas
- * reales a Gemini. Si subes a Vercel Pro (60s) puedes subir estos valores.
+ * Backoff exponencial + jitter (recomendado por Google para 503 — evita que
+ * muchos clientes reintenten en el mismo instante exacto). Con MAX_REINTENTOS=1,
+ * el peor caso de espera pura es ~800-1200ms, dejando margen de sobra dentro
+ * de los 10s que corta una Server Action en Vercel Hobby. Se bajó de 2 a 1
+ * reintento el 25 sep 2026 al confirmar en AI Studio que el proyecto ya anda
+ * cerca del techo de RPM (4/5) — cada interacción del estudiante ahora cuesta
+ * como máximo 2 llamadas a Gemini, no 3.
  */
 function calcularEspera(intento: number): number {
   return ESPERA_BASE_MS * 2 ** intento + Math.random() * JITTER_MAX_MS;
@@ -102,5 +106,17 @@ export const MODELO_TUTOR = "gemini-flash-lite-latest";
  * que Flash-Lite, pero no Pro) en vez de replicar 1:1 el mapeo Haiku→Flash-Lite /
  * Sonnet→Pro que tenía la versión con Claude. Si más adelante activas facturación
  * y quieres subir la calidad de las simulaciones, cambia este valor a un modelo Pro.
+ *
+ * Fijado explícitamente a "gemini-2.5-flash" el 25 sep 2026 (en vez del alias
+ * "gemini-flash-latest", que en ese momento resolvía a Gemini 3.8 Flash) como
+ * experimento tras varios 503 en producción: 3.8 Flash llevaba solo 3 semanas
+ * de lanzado y hay reportes recientes de otros desarrolladores viendo el mismo
+ * error con ese modelo específico. OJO: en AI Studio, gemini-2.5-flash tiene
+ * EXACTAMENTE el mismo techo que 3.8 Flash en este proyecto (RPM 5 / RPD 20 /
+ * TPM 250K — verificado en el dashboard) — este cambio es una apuesta a que un
+ * modelo con más meses en producción tenga menos tropiezos de capacidad, NO una
+ * forma de conseguir más cuota. Si sigues viendo 503 con este modelo, el
+ * problema es la disponibilidad general de la capa gratuita de Gemini en ese
+ * momento, no algo que un cambio de modelo vaya a arreglar.
  */
-export const MODELO_PERSONAJE = "gemini-flash-latest";
+export const MODELO_PERSONAJE = "gemini-2.5-flash";

@@ -15,14 +15,11 @@ describe("llamarConReintento", () => {
     expect(llamada).toHaveBeenCalledTimes(2);
   });
 
-  it("reintenta un 429 (límite de tasa) igual que un 503", async () => {
-    const llamada = vi
-      .fn()
-      .mockRejectedValueOnce(new ApiError({ message: "rate limited", status: 429 }))
-      .mockResolvedValueOnce("ok");
+  it("YA NO reintenta un 429 — el backoff es más corto que la ventana de RPM, así que solo desperdiciaría cuota", async () => {
+    const llamada = vi.fn().mockRejectedValue(new ApiError({ message: "rate limited", status: 429 }));
 
-    const resultado = await llamarConReintento(llamada);
-    expect(resultado).toBe("ok");
+    await expect(llamarConReintento(llamada)).rejects.toThrow();
+    expect(llamada).toHaveBeenCalledTimes(1);
   });
 
   it("NO reintenta errores que no son transitorios (ej. 401 API key inválida)", async () => {
@@ -32,11 +29,11 @@ describe("llamarConReintento", () => {
     expect(llamada).toHaveBeenCalledTimes(1);
   });
 
-  it("se rinde después de MAX_REINTENTOS y deja que el error se propague", async () => {
+  it("se rinde después de MAX_REINTENTOS (1) y deja que el error se propague — máx. 2 llamadas por interacción", async () => {
     const llamada = vi.fn().mockRejectedValue(new ApiError({ message: "high demand", status: 503 }));
 
     await expect(llamarConReintento(llamada)).rejects.toThrow();
-    expect(llamada.mock.calls.length).toBeGreaterThanOrEqual(3); // intento inicial + reintentos
+    expect(llamada).toHaveBeenCalledTimes(2); // intento inicial + 1 reintento, ni uno más
   });
 });
 
