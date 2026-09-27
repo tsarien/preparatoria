@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRetoPorSlug, getProgreso } from "@/lib/retos";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { EncabezadoPagina, ICONO_MODULO } from "@/components/encabezado-pagina";
+import { ICONO_MODULO } from "@/components/encabezado-pagina";
+import { GameChallengeShell } from "@/components/game/game-challenge-shell";
 import { CrearMetaForm } from "./crear-meta-form";
 import { MetaTracker } from "./meta-tracker";
 import type { MetaAhorro } from "@/types/database";
@@ -32,40 +32,43 @@ export default async function MetaDeAhorroPage() {
     : { data: null };
 
   const { data: reto } = await getRetoPorSlug(supabase, "meta-de-ahorro");
-  const progreso = reto ? (await getProgreso(supabase, user.id, reto.id)).data : null;
-  const feedbackPrevio = progreso?.estado === "completado" ? (progreso.feedback_ia as TutorFeedback) : null;
+  const progreso = reto
+    ? (await getProgreso(supabase, user.id, reto.id)).data
+    : null;
+  const feedbackPrevio =
+    progreso?.estado === "completado"
+      ? (progreso.feedback_ia as TutorFeedback)
+      : null;
+  const completado = progreso?.estado === "completado";
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-6 py-12">
-      <EncabezadoPagina
-        volverHref="/dashboard/modulos/ahorro-metas"
-        volverEtiqueta="Ahorro con metas"
-        titulo={meta ? meta.nombre : "Crea tu meta de ahorro"}
-        icono={ICONO_MODULO["ahorro-metas"]}
-        variante="compacta"
-      />
-
-      <Card>
-        {!meta && (
-          <CardHeader>
-            <CardTitle>Tu misión</CardTitle>
-            <CardDescription>
-              Define una meta realista según tu salario, y un plan de cuánto vas a aportar cada mes.
-            </CardDescription>
-          </CardHeader>
+    <GameChallengeShell
+      volverHref="/dashboard/modulos/ahorro-metas"
+      volverEtiqueta="Ahorro con metas"
+      categoria="Dinero"
+      mision="Misión única"
+      dificultad={reto?.dificultad}
+      titulo={meta ? meta.nombre : "Crea tu meta de ahorro"}
+      tagline={
+        meta
+          ? "Tu plan de ahorro está activo. Cada aporte te acerca más."
+          : "Elige una meta realista según tu salario, y un plan de cuánto apartar cada mes."
+      }
+      icono={ICONO_MODULO["ahorro-metas"]}
+      completado={completado}
+      recompensaXp={10}
+    >
+      <div className="p-5 pt-0">
+        {meta ? (
+          <MetaTracker
+            metaInicial={meta}
+            saldoDisponible={personaje?.saldo_billetera ?? 0}
+            feedbackPrevio={feedbackPrevio}
+          />
+        ) : (
+          <CrearMetaForm />
         )}
-        <CardContent>
-          {meta ? (
-            <MetaTracker
-              metaInicial={meta}
-              saldoDisponible={personaje?.saldo_billetera ?? 0}
-              feedbackPrevio={feedbackPrevio}
-            />
-          ) : (
-            <CrearMetaForm />
-          )}
-        </CardContent>
-      </Card>
-    </main>
+      </div>
+    </GameChallengeShell>
   );
 }

@@ -1,11 +1,19 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { EncabezadoPagina, ICONO_MODULO } from "@/components/encabezado-pagina";
+import { ICONO_MODULO } from "@/components/encabezado-pagina";
+import { GameModuleShell } from "@/components/game/game-module-shell";
+import { GameMissionHeader } from "@/components/game/game-mission-header";
 import { RetoLista } from "@/components/reto-lista";
 import type { Modulo, Reto, ProgresoUsuarioReto } from "@/types/database";
 
-type RetoResumen = Pick<Reto, "id" | "slug" | "nombre" | "dificultad" | "orden">;
-type ProgresoResumen = Pick<ProgresoUsuarioReto, "reto_id" | "estado" | "puntaje">;
+type RetoResumen = Pick<
+  Reto,
+  "id" | "slug" | "nombre" | "dificultad" | "orden"
+>;
+type ProgresoResumen = Pick<
+  ProgresoUsuarioReto,
+  "reto_id" | "estado" | "puntaje"
+>;
 
 export default async function ModuloContratoPage() {
   const supabase = await createSupabaseServerClient();
@@ -39,21 +47,30 @@ export default async function ModuloContratoPage() {
 
   const progresoPorReto = new Map((progresos ?? []).map((p) => [p.reto_id, p]));
 
-  return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-12">
-      <EncabezadoPagina
-        volverHref="/dashboard"
-        volverEtiqueta="Volver al dashboard"
-        titulo={modulo?.nombre ?? "Contrato de arriendo"}
-        descripcion={modulo?.descripcion}
-        icono={ICONO_MODULO["contrato-arriendo"]}
-      />
+  const completados = [...progresoPorReto.values()].filter(
+    (p) => p.estado === "completado",
+  ).length;
 
+  return (
+    <GameModuleShell>
+      <GameMissionHeader
+        volverHref="/dashboard"
+        volverEtiqueta="Volver al mapa"
+        categoria="Vida independiente"
+        mision="Misión 03"
+        titulo={modulo?.nombre ?? "Contrato de arriendo"}
+        tagline={
+          modulo?.descripcion ??
+          "Aprende a leer un contrato y a negociar antes de firmar."
+        }
+        icono={ICONO_MODULO["contrato-arriendo"]}
+        progreso={{ completados, total: retos?.length ?? 0 }}
+      />
       <RetoLista
         retos={retos ?? []}
         progresoPorReto={progresoPorReto}
         basePath="/dashboard/modulos/contrato-arriendo"
       />
-    </main>
+    </GameModuleShell>
   );
 }

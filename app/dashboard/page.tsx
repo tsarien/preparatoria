@@ -1,20 +1,42 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { xpEnNivelActual, XP_POR_NIVEL } from "@/lib/gamification";
 import type { Perfil, Personaje } from "@/types/database";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
+import { GameHUD } from "@/components/dashboard/game-hud";
 import { CaminoModulos } from "@/components/dashboard/camino-modulos";
 import { cerrarSesion } from "./actions";
 
 const MODULOS_MVP = [
-  { slug: "presupuesto-personal", grupo: "Dinero", nombre: "Presupuesto personal", icono: "/iconos/icono-presupuesto.png", disponible: true },
-  { slug: "detectar-estafas", grupo: "Seguridad digital", nombre: "Detectar estafas", icono: "/iconos/icono-seguridad.png", disponible: true },
-  { slug: "contrato-arriendo", grupo: "Vida independiente", nombre: "Contrato de arriendo", icono: "/iconos/icono-contrato.png", disponible: true },
-  { slug: "ahorro-metas", grupo: "Dinero", nombre: "Ahorro con metas", icono: "/iconos/icono-ahorro.png", disponible: true },
+  {
+    slug: "presupuesto-personal",
+    grupo: "Dinero",
+    nombre: "Presupuesto personal",
+    icono: "/iconos/icono-presupuesto.png",
+    disponible: true,
+  },
+  {
+    slug: "detectar-estafas",
+    grupo: "Seguridad digital",
+    nombre: "Detectar estafas",
+    icono: "/iconos/icono-seguridad.png",
+    disponible: true,
+  },
+  {
+    slug: "contrato-arriendo",
+    grupo: "Vida independiente",
+    nombre: "Contrato de arriendo",
+    icono: "/iconos/icono-contrato.png",
+    disponible: true,
+  },
+  {
+    slug: "ahorro-metas",
+    grupo: "Dinero",
+    nombre: "Ahorro con metas",
+    icono: "/iconos/icono-ahorro.png",
+    disponible: true,
+  },
 ];
 
 export default async function DashboardPage() {
@@ -36,7 +58,12 @@ export default async function DashboardPage() {
     .from("personajes")
     .select("id, saldo_billetera, salario_mensual, nivel, xp")
     .eq("usuario_id", user.id)
-    .single<Pick<Personaje, "saldo_billetera" | "salario_mensual" | "nivel" | "xp"> & { id: string }>();
+    .single<
+      Pick<
+        Personaje,
+        "saldo_billetera" | "salario_mensual" | "nivel" | "xp"
+      > & { id: string }
+    >();
 
   const { count: eventosPendientes } = personaje
     ? await supabase
@@ -49,93 +76,61 @@ export default async function DashboardPage() {
   const xpTotal = personaje?.xp ?? 0;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-12">
-      <header className="flex items-start justify-between">
-        <div className="flex flex-col gap-1">
-          <Image src="/logo-icon.png" alt="" width={400} height={355} className="h-7 w-auto" priority />
-          <h1 className="font-display text-3xl font-semibold text-ink">
-            Hola, {perfil?.nombre ?? "estudiante"}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard/ajustes">
-            <Button variant="ghost" size="sm">
-              Ajustes
-            </Button>
-          </Link>
-          <form action={cerrarSesion}>
-            <Button variant="ghost" size="sm" type="submit">
-              Cerrar sesión
-            </Button>
-          </form>
-        </div>
-      </header>
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
+      <GameHUD
+        nombre={perfil?.nombre ?? "estudiante"}
+        saldo={personaje?.saldo_billetera ?? 0}
+        nivel={personaje?.nivel ?? 1}
+        xpEnNivel={xpEnNivelActual(xpTotal)}
+        xpPorNivel={XP_POR_NIVEL}
+      />
 
+      {/* Eventos pendientes — banner de misión */}
       {!!eventosPendientes && eventosPendientes > 0 && (
         <Link
           href="/dashboard/eventos"
-          className="flex items-center justify-between rounded-md border border-gold bg-gold-soft px-4 py-3 text-sm text-ink transition-opacity hover:opacity-90"
+          className="game-chip flex items-center justify-between gap-3 rounded-2xl border-2 border-alert/40 bg-alert-soft px-4 py-3 text-sm text-ink transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none"
         >
-          <span>
-            🔔 Tienes {eventosPendientes} evento{eventosPendientes === 1 ? "" : "s"} pendiente
-            {eventosPendientes === 1 ? "" : "s"} en tu vida simulada
+          <span className="flex items-center gap-2">
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-alert text-xs font-bold text-white">
+              {eventosPendientes}
+            </span>
+            <span>
+              {eventosPendientes === 1
+                ? "Tienes 1 evento pendiente en tu vida simulada"
+                : `Tienes ${eventosPendientes} eventos pendientes`}
+            </span>
           </span>
-          <span className="underline underline-offset-2">Ver →</span>
+          <span className="shrink-0 font-medium underline underline-offset-2">
+            Ver →
+          </span>
         </Link>
       )}
 
+      {/* Aviso consentimiento — banner informativo (no compite con el HUD) */}
       {perfil?.consentimiento_acudiente === "pendiente" && (
-        <div className="rounded-md border border-gold/40 bg-gold-soft p-3 text-sm text-ink">
-          Tu cuenta está activa, pero como eres menor de edad, algunas funciones se habilitarán
-          por completo cuando tu acudiente confirme el consentimiento (Ley 1581 de 2012).
+        <div className="game-card rounded-2xl px-4 py-3 text-sm text-ink-soft">
+          Como eres menor de edad, algunas funciones se activarán cuando tu
+          acudiente confirme el consentimiento (Ley 1581 de 2012).
         </div>
       )}
 
-      {/* Mi Vida Simulada — vista rápida */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Mi Vida Simulada</CardTitle>
-          <CardDescription>Tu personaje se creó automáticamente al registrarte.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <div className="flex items-baseline justify-between">
-            <span className="flex items-center gap-2 text-sm text-ink-soft">
-              <Image src="/iconos/icono-saldo.png" alt="" width={200} height={179} className="h-6 w-auto" />
-              Saldo en billetera
-            </span>
-            <span className="font-mono text-xl font-medium text-ink">
-              ${(personaje?.saldo_billetera ?? 0).toLocaleString("es-CO")}
-            </span>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm text-ink-soft">Salario mensual simulado</span>
-            <span className="font-mono text-sm text-ink-soft">
-              ${(personaje?.salario_mensual ?? 0).toLocaleString("es-CO")}
-            </span>
-          </div>
-          <ProgressBar
-            value={xpEnNivelActual(xpTotal)}
-            max={XP_POR_NIVEL}
-            label={`Nivel ${personaje?.nivel ?? 1}`}
-          />
-          <div className="flex gap-2">
-            <Link href="/dashboard/billetera">
-              <Button variant="outline" size="sm">
-                Ver estado financiero completo
-              </Button>
-            </Link>
-            <Link href="/dashboard/ranking">
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <Image src="/iconos/icono-ranking.png" alt="" width={200} height={169} className="h-4 w-auto" />
-                Ranking de mi colegio
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Módulos del MVP — camino de progreso */}
+      {/* Mapa de aventura — protagonista */}
       <CaminoModulos modulos={MODULOS_MVP} />
+
+      {/* Acciones secundarias al pie */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <Link href="/dashboard/billetera">
+          <Button variant="outline" size="sm" className="press">
+            Ver billetera completa
+          </Button>
+        </Link>
+        <form action={cerrarSesion}>
+          <Button variant="ghost" size="sm" type="submit" className="press">
+            Cerrar sesión
+          </Button>
+        </form>
+      </div>
     </main>
   );
 }

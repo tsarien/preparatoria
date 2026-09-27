@@ -47,7 +47,8 @@
   /* Solo se usa con `motion-safe:` — es infinita y, con movimiento reducido,
      los tres puntos de "escribiendo…" se quedan quietos en vez de latir. */
   --animate-typing: typing 1.1s ease-in-out infinite;
-  --animate-bar-fill: bar-fill 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+  --animate-bar-fill: bar-fill 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s
+    backwards;
 
   @keyframes fade-up {
     from {
@@ -146,11 +147,66 @@
      transición de color y suma la del "hundimiento". */
   @media (prefers-reduced-motion: no-preference) {
     &:not(:disabled) {
-      transition-property: color, background-color, border-color, opacity, transform;
+      transition-property:
+        color, background-color, border-color, opacity, transform;
       &:active {
         transform: scale(0.97);
       }
     }
+  }
+}
+
+/* HUD del dashboard: card flotante con borde de marca y sombra inferior sólida
+   (efecto "pixel-3D"). Funciona en claro y oscuro porque usa tokens. */
+@utility game-hud {
+  border-width: 2px;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  background-color: color-mix(
+    in srgb,
+    var(--color-paper-raised) 92%,
+    transparent
+  );
+  backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 15%, transparent),
+    0 4px 0 color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+/* Chip interno del HUD (saldo, nivel, ranking) */
+@utility game-chip {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 20%, transparent);
+}
+
+/* Card con estética de videojuego — usada por Card tone="game" */
+@utility game-card {
+  border-width: 2px;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-line));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 12%, transparent),
+    0 3px 0 color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+/* Pulso del nodo activo en el mapa — "esta es tu siguiente misión" */
+@utility pulse-mission {
+  animation: pulse-mission 2.2s ease-out infinite;
+}
+@keyframes pulse-mission {
+  0% {
+    box-shadow:
+      0 0 0 0 color-mix(in srgb, var(--color-gold) 55%, transparent),
+      0 4px 0 rgba(31, 36, 48, 0.25);
+  }
+  70% {
+    box-shadow:
+      0 0 0 14px color-mix(in srgb, var(--color-gold) 0%, transparent),
+      0 4px 0 rgba(31, 36, 48, 0.25);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 color-mix(in srgb, var(--color-gold) 0%, transparent),
+      0 4px 0 rgba(31, 36, 48, 0.25);
   }
 }
 

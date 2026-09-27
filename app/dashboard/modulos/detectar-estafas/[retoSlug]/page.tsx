@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRetoPorSlug, getProgreso } from "@/lib/retos";
-import { EncabezadoPagina, ICONO_MODULO } from "@/components/encabezado-pagina";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ICONO_MODULO } from "@/components/encabezado-pagina";
+import { GameChallengeShell } from "@/components/game/game-challenge-shell";
 import { EscenarioEstafa } from "./escenario-estafa";
 import type { TutorFeedback } from "@/lib/ai/schemas/tutor";
 
@@ -33,32 +33,33 @@ export default async function EscenarioEstafaPage({
 
   const progreso = (await getProgreso(supabase, user.id, reto.id)).data;
   const config = reto.config as EscenarioConfig;
+  const completado = progreso?.estado === "completado";
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 px-6 py-12">
-      <EncabezadoPagina
-        volverHref="/dashboard/modulos/detectar-estafas"
-        volverEtiqueta="Detectar estafas"
-        titulo={reto.nombre}
-        icono={ICONO_MODULO["detectar-estafas"]}
-        variante="compacta"
-      />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>¿Estafa o no?</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EscenarioEstafa
-            retoSlug={retoSlug}
-            canal={config.canal}
-            remitente={config.remitente}
-            mensajeInicial={config.mensaje_inicial}
-            interactivo={config.interactivo}
-            feedbackPrevio={progreso?.estado === "completado" ? (progreso.feedback_ia as TutorFeedback) : null}
-          />
-        </CardContent>
-      </Card>
-    </main>
+    <GameChallengeShell
+      volverHref="/dashboard/modulos/detectar-estafas"
+      volverEtiqueta="Detectar estafas"
+      categoria="Seguridad digital"
+      mision={`Escenario · ${config.canal.toUpperCase()}`}
+      dificultad={reto.dificultad}
+      titulo={reto.nombre}
+      tagline="Algunos son estafas, otros no. Marca lo que veas y decide con criterio."
+      icono={ICONO_MODULO["detectar-estafas"]}
+      completado={completado}
+      recompensaXp={10}
+    >
+      <div className="p-5 pt-0">
+        <EscenarioEstafa
+          retoSlug={retoSlug}
+          canal={config.canal}
+          remitente={config.remitente}
+          mensajeInicial={config.mensaje_inicial}
+          interactivo={config.interactivo}
+          feedbackPrevio={
+            completado ? (progreso.feedback_ia as TutorFeedback) : null
+          }
+        />
+      </div>
+    </GameChallengeShell>
   );
 }

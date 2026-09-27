@@ -1,11 +1,19 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { EncabezadoPagina, ICONO_MODULO } from "@/components/encabezado-pagina";
+import { ICONO_MODULO } from "@/components/encabezado-pagina";
+import { GameModuleShell } from "@/components/game/game-module-shell";
+import { GameMissionHeader } from "@/components/game/game-mission-header";
 import { RetoLista } from "@/components/reto-lista";
 import type { Modulo, Reto, ProgresoUsuarioReto } from "@/types/database";
 
-type RetoResumen = Pick<Reto, "id" | "slug" | "nombre" | "dificultad" | "orden">;
-type ProgresoResumen = Pick<ProgresoUsuarioReto, "reto_id" | "estado" | "puntaje">;
+type RetoResumen = Pick<
+  Reto,
+  "id" | "slug" | "nombre" | "dificultad" | "orden"
+>;
+type ProgresoResumen = Pick<
+  ProgresoUsuarioReto,
+  "reto_id" | "estado" | "puntaje"
+>;
 
 export default async function ModuloAhorroPage() {
   const supabase = await createSupabaseServerClient();
@@ -38,23 +46,30 @@ export default async function ModuloAhorroPage() {
     .returns<ProgresoResumen[]>();
 
   const progresoPorReto = new Map((progresos ?? []).map((p) => [p.reto_id, p]));
+  const completados = [...progresoPorReto.values()].filter(
+    (p) => p.estado === "completado",
+  ).length;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-12">
-      <EncabezadoPagina
+    <GameModuleShell>
+      <GameMissionHeader
         volverHref="/dashboard"
-        volverEtiqueta="Volver al dashboard"
+        volverEtiqueta="Volver al mapa"
+        categoria="Dinero"
+        mision="Misión 04"
         titulo={modulo?.nombre ?? "Ahorro con metas"}
-        descripcion={modulo?.descripcion}
+        tagline={
+          modulo?.descripcion ?? "Construye poco a poco tu primera gran meta."
+        }
         icono={ICONO_MODULO["ahorro-metas"]}
+        progreso={{ completados, total: retos?.length ?? 0 }}
       />
-
       <RetoLista
         retos={retos ?? []}
         progresoPorReto={progresoPorReto}
         basePath="/dashboard/modulos/ahorro-metas"
         etiquetaCompletado="Meta activa"
       />
-    </main>
+    </GameModuleShell>
   );
 }

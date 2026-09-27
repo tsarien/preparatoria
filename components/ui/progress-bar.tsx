@@ -8,6 +8,8 @@ interface ProgressBarProps {
   /** Opt-in: la barra "se llena" desde 0 al aparecer. Apagado por defecto para no
    *  cambiar las pantallas que ya usan la barra sin este efecto. */
   animado?: boolean;
+  /** "xp" = gradiente morado→turquesa con glow, para la barra de nivel del HUD. */
+  variant?: "default" | "xp";
 }
 
 /**
@@ -16,7 +18,14 @@ interface ProgressBarProps {
  * usamos para montos de dinero, para que "progreso" y "plata" se lean
  * con la misma voz visual en toda la app.
  */
-export function ProgressBar({ value, max, label, className, animado = false }: ProgressBarProps) {
+export function ProgressBar({
+  value,
+  max,
+  label,
+  className,
+  animado = false,
+  variant = "default",
+}: ProgressBarProps) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
 
   return (
@@ -34,12 +43,19 @@ export function ProgressBar({ value, max, label, className, animado = false }: P
         aria-valuenow={value}
         aria-valuemin={0}
         aria-valuemax={max}
-        className="h-2 w-full overflow-hidden rounded-full bg-ink/10"
+        className={cn(
+          "h-2 w-full overflow-hidden rounded-full",
+          variant === "default" && "bg-ink/10",
+          variant === "xp" && "border border-ink/25 bg-ink/20",
+        )}
       >
         <div
           className={cn(
-            "h-full rounded-full bg-primary transition-[width] duration-300",
-            animado && "animate-bar-fill"
+            "h-full rounded-full transition-[width] duration-300",
+            variant === "default" && "bg-primary",
+            variant === "xp" &&
+              "bg-gradient-to-r from-primary via-primary to-[#00d9cc] shadow-[0_0_8px_rgba(108,77,255,0.45)]",
+            animado && "animate-bar-fill",
           )}
           style={{ width: `${pct}%` }}
         />

@@ -1,18 +1,25 @@
-import Image from "next/image";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Wrench } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { xpEnNivelActual, XP_POR_NIVEL } from "@/lib/gamification";
 import type { Personaje, Transaccion } from "@/types/database";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ProgressBar } from "@/components/ui/progress-bar";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { EncabezadoPagina } from "@/components/encabezado-pagina";
 import { BilleteraForm } from "./billetera-form";
 import { simularXp } from "./actions";
+import { WalletHero } from "@/components/game/wallet-hero";
+import { TransactionRow } from "@/components/game/transaction-row";
+import { GameModuleShell } from "@/components/game/game-module-shell";
 
-type PersonajeResumen = Pick<Personaje, "saldo_billetera" | "salario_mensual" | "nivel" | "xp">;
-type TransaccionFila = Pick<Transaccion, "id" | "tipo" | "categoria" | "monto" | "descripcion" | "creado_en">;
+type PersonajeResumen = Pick<
+  Personaje,
+  "saldo_billetera" | "salario_mensual" | "nivel" | "xp"
+>;
+type TransaccionFila = Pick<
+  Transaccion,
+  "id" | "tipo" | "categoria" | "monto" | "descripcion" | "creado_en"
+>;
 
 export default async function BilleteraPage() {
   const supabase = await createSupabaseServerClient();
@@ -39,89 +46,130 @@ export default async function BilleteraPage() {
         .returns<TransaccionFila[]>()
     : { data: [] as TransaccionFila[] };
 
+  // ──────────────────────────────────────────────────────────────────────
+  // Agregación de PRESENTACIÓN sobre los movimientos ya cargados (últimos 20).
+  // No es histórico completo — la UI lo etiqueta explícitamente como tal.
+  // Ninguna regla de negocio vive aquí: es sumar lo que ya vino de Supabase.
+  // ──────────────────────────────────────────────────────────────────────
+  const movs = transacciones ?? [];
+  const ingresos = movs
+    .filter((t) => t.tipo === "ingreso")
+    .reduce((sum, t) => sum + t.monto, 0);
+  const gastos = movs
+    .filter((t) => t.tipo === "gasto")
+    .reduce((sum, t) => sum + t.monto, 0);
+  const ahorro = movs
+    .filter((t) => t.categoria === "ahorro" || t.categoria === "ahorro_meta")
+    .reduce((sum, t) => sum + t.monto, 0);
+
+  const xpTotal = personaje?.xp ?? 0;
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-12">
-      <EncabezadoPagina
-        volverHref="/dashboard"
-        volverEtiqueta="Volver al dashboard"
-        titulo="Estado financiero"
-        icono="/iconos/icono-saldo.png"
+    <GameModuleShell ancho="estandar">
+      {/* Encabezado simple — esta no es una misión, es el inventario del personaje */}
+      <header className="flex flex-col gap-3">
+        <Link
+          href="/dashboard"
+          className="group inline-flex w-fit items-center gap-1.5 text-sm text-ink-soft transition-colors duration-150 hover:text-ink"
+        >
+          <ArrowLeft
+            className="h-4 w-4 transition-transform duration-150 group-hover:-translate-x-0.5 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+          Volver al dashboard
+        </Link>
+        <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">
+          Tu billetera
+        </h1>
+        <p className="text-sm text-ink-soft">
+          Todo lo que entra y sale de tu vida simulada, en un solo lugar.
+        </p>
+      </header>
+
+      {/* Card principal */}
+      <WalletHero
+        saldo={personaje?.saldo_billetera ?? 0}
+        salarioMensual={personaje?.salario_mensual ?? 0}
+        nivel={personaje?.nivel ?? 1}
+        xpEnNivel={xpEnNivelActual(xpTotal)}
+        xpPorNivel={XP_POR_NIVEL}
+        ingresos={ingresos}
+        gastos={gastos}
+        ahorro={ahorro}
       />
 
-      {/* Resumen + XP */}
-      <Card>
-        <CardContent className="flex flex-col gap-5 pt-5">
-          <div className="flex items-baseline justify-between">
-            <span className="flex items-center gap-2 text-sm text-ink-soft">
-              <Image src="/iconos/icono-saldo.png" alt="" width={200} height={179} className="h-6 w-auto" />
-              Saldo en billetera
+      {/* Movimientos */}
+      <section className="game-card overflow-hidden rounded-2xl bg-paper-raised">
+        <div className="flex items-center justify-between gap-3 border-b-2 border-line bg-gradient-to-r from-primary-soft via-paper-raised to-gold-soft px-4 py-3">
+          <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-ink">
+            Movimientos
+          </h2>
+          <span className="shrink-0 rounded-full border border-line bg-paper-raised px-2.5 py-0.5 font-mono text-[11px] font-semibold text-ink-soft">
+            Últimos {movs.length}
+          </span>
+        </div>
+
+        {movs.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-ink-soft">
+            Todavía no hay movimientos. Completa un desafío o simula una
+            transacción abajo.
+          </p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-line">
+            {movs.map((t) => (
+              <TransactionRow
+                key={t.id}
+                tipo={t.tipo}
+                monto={t.monto}
+                categoria={t.categoria}
+                descripcion={t.descripcion}
+                fecha={t.creado_en}
+                esAhorro={
+                  t.categoria === "ahorro" || t.categoria === "ahorro_meta"
+                }
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Herramienta de prueba — claramente diferenciada del contenido real */}
+      <Card tone="game" className="border-dashed">
+        <div className="flex flex-col gap-4 p-5">
+          <div className="flex items-center gap-2.5">
+            <span
+              aria-hidden="true"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border-2 border-line bg-paper text-ink-soft"
+            >
+              <Wrench className="h-4 w-4" />
             </span>
-            <span className="font-mono text-2xl font-medium text-ink">
-              ${(personaje?.saldo_billetera ?? 0).toLocaleString("es-CO")}
-            </span>
+            <div className="min-w-0">
+              <p className="font-display text-sm font-semibold text-ink">
+                Herramienta de prueba
+              </p>
+              <p className="text-xs text-ink-soft">
+                Solo para ti — simula movimientos y otorga XP para ver el
+                sistema en acción.
+              </p>
+            </div>
           </div>
-          <ProgressBar
-            value={xpEnNivelActual(personaje?.xp ?? 0)}
-            max={XP_POR_NIVEL}
-            label={`Nivel ${personaje?.nivel ?? 1}`}
-            animado
-          />
-          <form action={simularXp}>
-            <Button type="submit" variant="outline" size="sm" className="press">
-              Otorgar 50 XP (prueba)
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
 
-      {/* Simular transacción */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Simular una transacción</CardTitle>
-          <CardDescription>
-            Llama a la función <code className="font-mono">registrar_transaccion</code> en
-            Postgres — el saldo de arriba se actualiza de verdad.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
           <BilleteraForm />
-        </CardContent>
-      </Card>
 
-      {/* Historial */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Historial</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!transacciones || transacciones.length === 0 ? (
-            <p className="text-sm text-ink-soft">Todavía no hay transacciones.</p>
-          ) : (
-            <ul className="flex flex-col divide-y divide-line">
-              {transacciones.map((t) => (
-                <li key={t.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <div className="flex min-w-0 flex-col">
-                    <span className="break-words text-sm text-ink">{t.descripcion || t.categoria || t.tipo}</span>
-                    <span className="text-xs text-ink-soft">
-                      {new Date(t.creado_en).toLocaleString("es-CO")}
-                    </span>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {t.categoria && <Badge tone="ink">{t.categoria}</Badge>}
-                    <span
-                      className={`font-mono text-sm font-medium ${
-                        t.tipo === "ingreso" ? "text-growth" : "text-alert"
-                      }`}
-                    >
-                      {t.tipo === "ingreso" ? "+" : "−"}${t.monto.toLocaleString("es-CO")}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
+          <div className="border-t border-line pt-4">
+            <form action={simularXp}>
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                className="press"
+              >
+                Otorgar 50 XP (prueba)
+              </Button>
+            </form>
+          </div>
+        </div>
       </Card>
-    </main>
+    </GameModuleShell>
   );
 }
