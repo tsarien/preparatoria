@@ -13,11 +13,18 @@ vi.mock("@google/genai", async (importOriginal) => {
 });
 
 const ORIGINAL_ENV = process.env.GEMINI_API_KEY;
+const ORIGINAL_PROVIDER = process.env.AI_PROVIDER;
 const ESCENARIO = {
-  descripcionPersonaje: "Supuesto asesor de una 'inversión' con rendimientos irreales.",
+  descripcionPersonaje:
+    "Supuesto asesor de una 'inversión' con rendimientos irreales.",
   canal: "WhatsApp",
-  mensajeInicial: "¡Hola! Vi tu perfil y quiero ofrecerte una inversión con 40% mensual.",
-  senalesClave: ["Rendimiento irreal", "Urgencia artificial", "Pide datos bancarios"],
+  mensajeInicial:
+    "¡Hola! Vi tu perfil y quiero ofrecerte una inversión con 40% mensual.",
+  senalesClave: [
+    "Rendimiento irreal",
+    "Urgencia artificial",
+    "Pide datos bancarios",
+  ],
 };
 
 describe("simularEstafador (migración a Gemini)", () => {
@@ -25,10 +32,13 @@ describe("simularEstafador (migración a Gemini)", () => {
     vi.resetModules();
     generateContentMock.mockReset();
     process.env.GEMINI_API_KEY = "clave-de-prueba";
+    process.env.AI_PROVIDER = "gemini";
   });
 
   afterEach(() => {
     process.env.GEMINI_API_KEY = ORIGINAL_ENV;
+    if (ORIGINAL_PROVIDER === undefined) delete process.env.AI_PROVIDER;
+    else process.env.AI_PROVIDER = ORIGINAL_PROVIDER;
   });
 
   it("convierte 'estudiante'→'user' y 'estafador'→'model'", async () => {
@@ -67,9 +77,10 @@ describe("simularEstafador (migración a Gemini)", () => {
     generateContentMock
       .mockRejectedValueOnce(
         new ApiError({
-          message: '{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}',
+          message:
+            '{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}',
           status: 503,
-        })
+        }),
       )
       .mockResolvedValueOnce({
         candidates: [{ finishReason: "STOP" }],
@@ -89,9 +100,10 @@ describe("simularEstafador (migración a Gemini)", () => {
   it("si el 503 persiste, el estudiante ve un mensaje amigable — nunca el JSON crudo", async () => {
     generateContentMock.mockRejectedValue(
       new ApiError({
-        message: '{"error":{"code":503,"message":"high demand","status":"UNAVAILABLE"}}',
+        message:
+          '{"error":{"code":503,"message":"high demand","status":"UNAVAILABLE"}}',
         status: 503,
-      })
+      }),
     );
 
     const { simularEstafador } = await import("./estafador");

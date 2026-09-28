@@ -1,4 +1,7 @@
-import { getGeminiClient, isAiConfigured, llamarConReintento, mensajeErrorIA, MODELO_TUTOR } from "../client";
+import { isAiConfigured, mensajeErrorIA } from "../client";
+import { generateTutorResponse } from "../providers";
+import { getAIKeyName } from "../providers/config";
+import { validarRespuestaEstructurada } from "../providers/validation";
 import { tutorFeedbackSchema, type TutorFeedback } from "../schemas/tutor";
 
 const SYSTEM_PROMPT = `Eres el tutor de preparatorIA, una app que enseña educación financiera
@@ -42,60 +45,61 @@ export type ResultadoTutor =
  * verificar los tipos de GenerateContentConfig antes de asumir que responseFormat
  * ya está disponible.
  */
-export async function getTutorFeedback(input: TutorFeedbackInput): Promise<ResultadoTutor> {
+export async function getTutorFeedback(
+  input: TutorFeedbackInput,
+): Promise<ResultadoTutor> {
   if (!isAiConfigured) {
-    return { success: false, error: "Falta configurar GEMINI_API_KEY (ver README)." };
-  }
-
-  const client = getGeminiClient();
-  if (!client) {
-    return { success: false, error: "No se pudo inicializar el cliente de IA." };
+    return {
+      success: false,
+      error: `Falta configurar ${getAIKeyName()} (ver README).`,
+    };
   }
 
   try {
-    const response = await llamarConReintento(() =>
-      client.models.generateContent({
-        model: MODELO_TUTOR,
-        contents: `Reto: ${input.retoNombre}
+    const response = await generateTutorResponse({
+      systemPrompt: SYSTEM_PROMPT,
+      prompt: `Reto: ${input.retoNombre}
 
 Contexto del reto: ${input.contextoReto}
 
 Decisión del estudiante: ${input.decisionEstudiante}
 
 Evalúa esta decisión específica y da retroalimentación.`,
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          maxOutputTokens: 500,
-          responseMimeType: "application/json",
-          responseJsonSchema: tutorFeedbackSchema,
-        },
-      })
-    );
+      schema: tutorFeedbackSchema,
+    });
 
-    if (response.promptFeedback?.blockReason) {
-      return { success: false, error: "La IA no pudo generar retroalimentación para esta solicitud." };
-    }
-
-    const finishReason = response.candidates?.[0]?.finishReason;
-    if (finishReason && finishReason !== "STOP") {
-      return { success: false, error: "La IA no pudo generar retroalimentación para esta solicitud." };
+    if (response.blocked || !response.completed) {
+      return {
+        success: false,
+        error: "La IA no pudo generar retroalimentación para esta solicitud.",
+      };
     }
 
     const texto = response.text;
     if (!texto) {
-      return { success: false, error: "La IA no devolvió retroalimentación para esta solicitud." };
+      return {
+        success: false,
+        error: "La IA no devolvió retroalimentación para esta solicitud.",
+      };
     }
 
-    let feedback: TutorFeedback;
-    try {
-      feedback = JSON.parse(texto) as TutorFeedback;
-    } catch {
-      return { success: false, error: "La IA devolvió una respuesta que no se pudo interpretar." };
+    const feedback = validarRespuestaEstructurada<TutorFeedback>(
+      texto,
+      tutorFeedbackSchema,
+    );
+    if (!feedback) {
+      return {
+        success: false,
+        error: "La IA devolvió una respuesta que no se pudo interpretar.",
+      };
     }
 
     return {
       success: true,
-      feedback: { ...feedback, puntaje: Math.max(0, Math.min(100, Math.round(feedback.puntaje))) },
+      feedback: {
+        ...feedback,
+        puntaje: Math.max(0, Math.min(100, Math.round(feedback.puntaje))),
+      },
     };
   } catch (error) {
     return { success: false, error: mensajeErrorIA(error) };

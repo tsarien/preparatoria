@@ -9,16 +9,20 @@ vi.mock("@google/genai", () => ({
 }));
 
 const ORIGINAL_ENV = process.env.GEMINI_API_KEY;
+const ORIGINAL_PROVIDER = process.env.AI_PROVIDER;
 
 describe("getTutorFeedback (migración a Gemini)", () => {
   beforeEach(() => {
     vi.resetModules();
     generateContentMock.mockReset();
     process.env.GEMINI_API_KEY = "clave-de-prueba";
+    process.env.AI_PROVIDER = "gemini";
   });
 
   afterEach(() => {
     process.env.GEMINI_API_KEY = ORIGINAL_ENV;
+    if (ORIGINAL_PROVIDER === undefined) delete process.env.AI_PROVIDER;
+    else process.env.AI_PROVIDER = ORIGINAL_PROVIDER;
   });
 
   it("devuelve error claro si falta GEMINI_API_KEY, sin llamar a la API", async () => {
@@ -97,7 +101,11 @@ describe("getTutorFeedback (migración a Gemini)", () => {
     });
 
     const { getTutorFeedback } = await import("./tutor");
-    const resultado = await getTutorFeedback({ retoNombre: "r", contextoReto: "c", decisionEstudiante: "d" });
+    const resultado = await getTutorFeedback({
+      retoNombre: "r",
+      contextoReto: "c",
+      decisionEstudiante: "d",
+    });
 
     expect(resultado.success).toBe(false);
   });
@@ -109,7 +117,11 @@ describe("getTutorFeedback (migración a Gemini)", () => {
     });
 
     const { getTutorFeedback } = await import("./tutor");
-    const resultado = await getTutorFeedback({ retoNombre: "r", contextoReto: "c", decisionEstudiante: "d" });
+    const resultado = await getTutorFeedback({
+      retoNombre: "r",
+      contextoReto: "c",
+      decisionEstudiante: "d",
+    });
 
     expect(resultado.success).toBe(false);
   });

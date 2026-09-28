@@ -8,6 +8,7 @@ vi.mock("@google/genai", () => ({
 }));
 
 const ORIGINAL_ENV = process.env.GEMINI_API_KEY;
+const ORIGINAL_PROVIDER = process.env.AI_PROVIDER;
 const ESCENARIO = {
   descripcionPersonaje: "Arrendador razonable de un apartamento en Medellín.",
   puntoNegociacion: "Reducir el depósito de dos meses a uno.",
@@ -19,10 +20,13 @@ describe("simularArrendador (migración a Gemini)", () => {
     vi.resetModules();
     generateContentMock.mockReset();
     process.env.GEMINI_API_KEY = "clave-de-prueba";
+    process.env.AI_PROVIDER = "gemini";
   });
 
   afterEach(() => {
     process.env.GEMINI_API_KEY = ORIGINAL_ENV;
+    if (ORIGINAL_PROVIDER === undefined) delete process.env.AI_PROVIDER;
+    else process.env.AI_PROVIDER = ORIGINAL_PROVIDER;
   });
 
   it("convierte 'estudiante'→'user' y 'arrendador'→'model', y separa systemInstruction", async () => {
@@ -43,9 +47,14 @@ describe("simularArrendador (migración a Gemini)", () => {
     const llamada = generateContentMock.mock.calls[0][0];
     expect(llamada.contents).toEqual([
       { role: "model", parts: [{ text: ESCENARIO.mensajeInicial }] },
-      { role: "user", parts: [{ text: "¿Podríamos bajar el depósito a un mes?" }] },
+      {
+        role: "user",
+        parts: [{ text: "¿Podríamos bajar el depósito a un mes?" }],
+      },
     ]);
-    expect(llamada.config.systemInstruction).toContain(ESCENARIO.puntoNegociacion);
+    expect(llamada.config.systemInstruction).toContain(
+      ESCENARIO.puntoNegociacion,
+    );
   });
 
   it("rechaza si el último mensaje no es del estudiante, sin llamar a la API", async () => {

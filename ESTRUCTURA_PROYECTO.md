@@ -6,11 +6,11 @@ Generado directamente desde el proyecto real (no es un esquema aspiracional como
 
 Cada ruta de la app sigue el mismo patrón de 3 archivos, así que en vez de anotar los ~45 archivos de rutas uno por uno, aquí está la convención una sola vez:
 
-| Archivo | Rol |
-|---|---|
-| `page.tsx` | Server Component — trae los datos de Supabase y decide qué mostrar. |
-| `actions.ts` | Server Actions — la lógica de servidor (llama a `lib/`, nunca al revés). |
-| `*-form.tsx` / componente con nombre propio | Client Component — la parte interactiva (formularios, chat). |
+| Archivo                                     | Rol                                                                      |
+| ------------------------------------------- | ------------------------------------------------------------------------ |
+| `page.tsx`                                  | Server Component — trae los datos de Supabase y decide qué mostrar.      |
+| `actions.ts`                                | Server Actions — la lógica de servidor (llama a `lib/`, nunca al revés). |
+| `*-form.tsx` / componente con nombre propio | Client Component — la parte interactiva (formularios, chat).             |
 
 ## Resumen por carpeta
 
@@ -19,7 +19,7 @@ Cada ruta de la app sigue el mismo patrón de 3 archivos, así que en vez de ano
 - **`components/ui/`** — el sistema de diseño (Button, Card, Badge, ProgressBar) — los mismos 4 componentes de la Fase 0, reutilizados en todo el proyecto.
 - **`components/`** (raíz) — piezas compartidas entre módulos: `feedback-card.tsx` (retroalimentación de IA), `theme-system-listener.tsx` (modo oscuro).
 - **`lib/`** — toda la lógica de negocio, organizada por dominio (`wallet`, `gamification`, `presupuesto`, `estafas`, `contrato`, `ahorro`, `eventos`, `theme`). Cada archivo de lógica pura tiene su `.test.ts` al lado.
-  - `lib/ai/` — la capa de IA: `client.ts` (config + modelos), `prompts/` (tutor, estafador, arrendador), `schemas/` (salidas estructuradas).
+  - `lib/ai/` — la capa de IA: `client.ts` (reintentos y mensajes de error), `providers/` (selección de Gemini/Groq, modelos por tarea y validación estructurada), `prompts/` (tutor, estafador, arrendador), `schemas/` (salidas estructuradas). `AI_PROVIDER` selecciona el proveedor; Gemini es el valor predeterminado.
   - `lib/supabase/` — los 3 clientes (browser, server, middleware) de la Fase 1.
 - **`supabase/migrations/`** — las 9 migraciones SQL, en orden — es la fuente de verdad del modelo de datos.
 - **`e2e/`** — pruebas de Playwright (end-to-end).
@@ -118,6 +118,14 @@ preparatoria/
 │   └── responsive.spec.ts
 ├── lib/
 │   ├── ai/
+│   │   ├── providers/
+│   │   │   ├── config.ts
+│   │   │   ├── gemini.ts
+│   │   │   ├── groq.ts
+│   │   │   ├── index.ts
+│   │   │   ├── providers.verificacion.test.ts
+│   │   │   ├── types.ts
+│   │   │   └── validation.ts
 │   │   ├── prompts/
 │   │   │   ├── arrendador.ts
 │   │   │   ├── estafador.ts

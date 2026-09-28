@@ -14,32 +14,40 @@ Esqueleto técnico: Next.js 16 + TypeScript + Tailwind v4 + Supabase, verificado
 ## Lo que te falta hacer (fuera de mi alcance: requiere tus propias cuentas)
 
 ### 1. Crear el repositorio
+
 ```bash
 git init
 git add .
 git commit -m "Fase 0: cimientos técnicos"
 ```
+
 Crea un repo vacío en GitHub y súbelo (`git remote add origin ... && git push -u origin main`).
 
 ### 2. Crear el proyecto en Supabase
+
 1. Ve a [supabase.com](https://supabase.com) → New project.
 2. Cuando esté listo, entra a **SQL Editor** → New query, pega el contenido completo de `supabase/migrations/0001_core_schema.sql` → **Run**.
 3. Ve a **Project Settings → API** y copia el **Project URL** y la **anon public key**.
 
 ### 3. Configurar las variables de entorno
+
 ```bash
 cp .env.example .env.local
 ```
+
 Pega ahí el Project URL y la anon key del paso anterior.
 
 ### 4. Correr en local
+
 ```bash
 npm install
 npm run dev
 ```
+
 Abre `http://localhost:3000` — deberías ver la tarjeta de conexión en verde con "Colegio de prueba" (el dato que sembró la migración).
 
 ### 5. Desplegar en Vercel
+
 1. Ve a [vercel.com](https://vercel.com) → New Project → importa tu repo de GitHub.
 2. En **Environment Variables**, agrega `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (los mismos valores de tu `.env.local`).
 3. Deploy.
@@ -87,9 +95,10 @@ El corazón de esta fase son dos funciones de Postgres — `registrar_transaccio
 
 Primer módulo de contenido completo, y primera integración real de IA. Establece el patrón que se repite en las Fases 4-6: cada reto vive en su propia carpeta (`page.tsx` + `*-form.tsx` + `actions.ts`), su contenido sale de la tabla `retos` (columna `config`, jsonb) en vez de estar hardcodeado en el componente, y la retroalimentación la da `getTutorFeedback()` en `lib/ai/prompts/tutor.ts`.
 
-**Cómo funciona el tutor de IA**: usa el soporte nativo de JSON Schema de la API de Gemini (`responseMimeType: "application/json"` + `responseJsonSchema` — no es "le pido que responda en JSON y cruzo los dedos"). El schema vive en `lib/ai/schemas/tutor.ts`, y el tipo de TypeScript se infiere automáticamente de ahí, así que el schema y el tipo nunca se desincronizan. El modelo usado es Gemini Flash-Lite (económico, gratis en Google AI Studio) — ver el comentario en `lib/ai/client.ts` sobre cuándo usar un modelo más capaz.
+**Cómo funciona el tutor de IA**: usa salida estructurada con el schema en `lib/ai/schemas/tutor.ts`; el tipo de TypeScript se infiere de ahí y cada respuesta se valida también en runtime. Con `AI_PROVIDER=gemini` (valor por defecto) Gemini usa `responseJsonSchema`; con `AI_PROVIDER=groq`, Groq usa JSON Schema cuando el modelo lo admite. Consulta la sección de proveedores al final para elegir y configurar cada opción.
 
 Los 3 retos del módulo:
+
 1. **Distribuye tu primer salario** — reparte el salario simulado entre categorías; la suma tiene que calzar exacto.
 2. **Detecta los gastos hormiga** — identifica cuáles de una lista de gastos son "hormiga".
 3. **Prioriza tus gastos** — elige qué comprar con un presupuesto que no alcanza para todo.
@@ -99,14 +108,14 @@ Los tres conectan de verdad con la billetera de la Fase 2 (generan transacciones
 ### Pasos adicionales para esta fase
 
 1. Corre `supabase/migrations/0004_modulos_retos.sql` en el SQL Editor (después de 0001-0003). Esto crea las tablas de contenido y siembra el módulo con sus 3 retos.
-2. Consigue una API key **gratis y sin tarjeta de crédito** en [Google AI Studio](https://aistudio.google.com/apikey): inicia sesión con una cuenta de Google → "Create API key" → "Create API key in new project" (o elige un proyecto existente). Cópiala y agrégala a `.env.local` como `GEMINI_API_KEY` (y en Vercel cuando despliegues). No pide método de pago — por eso se eligió la API de Gemini para este proyecto: cualquier profesor o jurado puede sacar su propia key gratis en menos de un minuto para probar la app.
+2. Para el proveedor predeterminado, consigue una API key **gratis y sin tarjeta de crédito** en [Google AI Studio](https://aistudio.google.com/apikey): inicia sesión con una cuenta de Google → "Create API key" → "Create API key in new project" (o elige un proyecto existente). Cópiala a `.env.local` como `GEMINI_API_KEY` (y a Vercel al desplegar). También puedes configurar Groq según la sección de proveedores al final.
 3. Corre las pruebas: `npm test` — deberían pasar 37 (23 de la Fase 2 + 14 nuevas de la lógica de los retos).
-4. `npm run dev`, entra a tu dashboard → **Presupuesto personal** (ya no dice "Próximamente") → prueba los 3 retos. Si `GEMINI_API_KEY` no está configurada, vas a ver un error claro en vez de que la app se caiga.
+4. `npm run dev`, entra a tu dashboard → **Presupuesto personal** (ya no dice "Próximamente") → prueba los 3 retos. Si falta la clave del proveedor seleccionado, vas a ver un error claro en vez de que la app se caiga.
 
 ### Qué no se hizo a propósito (queda para fases siguientes)
 
 - Los otros 3 módulos del MVP (Fases 4-6) — usan el mismo patrón que este.
-- Simulaciones conversacionales con la IA como "personaje" (el estafador, el arrendador) — eso empieza en la Fase 4, con Gemini Flash (más capaz que Flash-Lite, pero se queda en la capa gratuita — ver `lib/ai/client.ts`).
+- Simulaciones conversacionales con la IA como "personaje" (el estafador, el arrendador) — eso empieza en la Fase 4; el proveedor activo elige el modelo de personaje.
 
 ## Fase 4 — Módulo: Detectar estafas
 
@@ -117,7 +126,7 @@ Segundo módulo, y el primero donde la IA actúa como **personaje** dentro de un
 - Cada escenario tiene un **límite de 3 mensajes** del estudiante (`lib/estafas.ts` → `MAX_MENSAJES_ESTUDIANTE`), para que sea una práctica corta y controlada, no una conversación abierta.
 - El módulo tiene **4 escenarios, no todos son estafas**: 3 sí lo son (premio falso, phishing bancario, "inversión" que triplica la plata) y 1 es un correo legítimo del colegio. La idea es enseñar a distinguir, no a desconfiar de todo.
 - La evaluación final reutiliza el mismo `getTutorFeedback()` de la Fase 3 (mismo schema, ahora con categorías de error nuevas como `no_detecta_senales_estafa`), en vez de inventar un sistema paralelo.
-- El estafador usa Gemini Flash (`MODELO_PERSONAJE` en `lib/ai/client.ts`), no Flash-Lite — una conversación necesita sonar más natural que una evaluación estructurada de una sola respuesta. Se queda dentro de la familia Flash (no Pro) a propósito, para no salirse de la capa gratuita.
+- Con Gemini, el estafador usa Gemini Flash, no Flash-Lite — una conversación necesita sonar más natural que una evaluación estructurada de una sola respuesta. El modelo activo de cada tarea se define en `lib/ai/providers/config.ts`.
 
 Si detectas correctamente una de las 3 estafas reales, el personaje recibe como "ingreso" el dinero que se habría perdido (`categoria: estafa_evitada`) — otra conexión real con la billetera de la Fase 2.
 
@@ -137,7 +146,7 @@ Si detectas correctamente una de las 3 estafas reales, el personaje recibe como 
 Tercer módulo, y segundo personaje de IA (`simularArrendador()` en `lib/ai/prompts/arrendador.ts`, mismos límites de guion fijo que el estafador de la Fase 4). Dos retos:
 
 1. **Lee el contrato** — un contrato de arriendo ficticio pero realista, con 8 cláusulas (3 de ellas problemáticas: incremento anual por encima del IPC, reparaciones estructurales a cargo del arrendatario, interés de mora del 5% diario) + 3 preguntas de comprensión. El estudiante marca las cláusulas que le parecen preocupantes.
-2. **Negocia con el arrendador** — chat de negociación (máximo 4 mensajes) para intentar bajar el depósito de 2 meses a 1. El arrendador (Gemini Flash) es cordial pero no cede solo porque se lo pidan — solo si el estudiante da una razón real.
+2. **Negocia con el arrendador** — chat de negociación (máximo 4 mensajes) para intentar bajar el depósito de 2 meses a 1. El personaje es cordial pero no cede solo porque se lo pidan — solo si el estudiante da una razón real.
 
 **Corrección importante**: los retos de las Fases 3 y 4 nunca estaban llamando a `otorgarXp()` — la barra de nivel del dashboard existía pero no se estaba alimentando de completar retos, solo del botón de prueba de la Fase 2. Ya está corregido en los 4 retos anteriores además de los 2 nuevos: completar cualquier reto ahora otorga XP (el puntaje del tutor, con un mínimo de 10 para que intentarlo siempre cuente para algo).
 
@@ -182,7 +191,7 @@ Esta fase tenía tres piezas grandes — el propio plan sugería poder dividirla
 
 - **`generar_eventos_diarios()`**: función de Postgres que le genera 0-2 eventos aleatorios por día a cada personaje (factura inesperada, imprevisto médico, bono, o una "oferta sospechosa" — esta última conecta con lo que aprendiste en el módulo de detectar estafas). Se programa con `pg_cron`; también la puedes llamar a mano para probar sin esperar un día.
 - **`resolver_evento()`**: atender un evento reutiliza `registrar_transaccion()` (Fase 2) y otorga 5 XP reutilizando `otorgar_xp()` (Fase 2) — todo en una sola función atómica. Ignorar una oferta sospechosa (la jugada correcta) no cuesta nada.
-- **Ranking por colegio**: una función `security definer` que expone *solo* nombre, curso, nivel y XP — nunca datos sensibles. A propósito NO es una policy de RLS ampliada: eso habría dejado ver el perfil completo de tus compañeros (correo del acudiente incluido) por la API de Supabase. La función controla exactamente qué columnas salen.
+- **Ranking por colegio**: una función `security definer` que expone _solo_ nombre, curso, nivel y XP — nunca datos sensibles. A propósito NO es una policy de RLS ampliada: eso habría dejado ver el perfil completo de tus compañeros (correo del acudiente incluido) por la API de Supabase. La función controla exactamente qué columnas salen.
 
 ### Pasos adicionales para esta fase
 
@@ -230,13 +239,13 @@ Revisión manual (no pude correr un auditor automático tipo Lighthouse sin un d
 Instalé Playwright y escribí 17 pruebas en dos archivos:
 
 - **`e2e/navegacion-publica.spec.ts`** (13 pruebas): páginas públicas y protección de rutas. No necesitan credenciales reales.
-- **`e2e/flujos-modulos.spec.ts`** (4 pruebas): el flujo completo de cada módulo — registro, login, completar el reto, ver retroalimentación real de la IA. Se saltan solas (`test.skip`) si no detectan `NEXT_PUBLIC_SUPABASE_URL` y `GEMINI_API_KEY` en `.env.local`, en vez de fallar de forma confusa.
+- **`e2e/flujos-modulos.spec.ts`** (4 pruebas): el flujo completo de cada módulo — registro, login, completar el reto, ver retroalimentación real de la IA. Se saltan solas (`test.skip`) si faltan `NEXT_PUBLIC_SUPABASE_URL` y la clave del proveedor seleccionado (`GEMINI_API_KEY` o `GROQ_API_KEY`) en `.env.local`.
 
 **Lo que no pude hacer**: este entorno no tiene acceso de red para descargar los navegadores que Playwright necesita para ejecutarse (`cdn.playwright.dev` no está en la lista de dominios permitidos aquí). Verifiqué todo lo que sí pude sin eso:
 
 - Las 17 pruebas compilan sin errores de TypeScript (`npx tsc --noEmit`).
 - Playwright las reconoce y las lista correctamente (`npx playwright test --list`).
-- Al intentar correrlas, el único error es *"Executable doesn't exist"* — confirma que el bloqueo es la descarga del navegador, no un problema de las pruebas ni de la app.
+- Al intentar correrlas, el único error es _"Executable doesn't exist"_ — confirma que el bloqueo es la descarga del navegador, no un problema de las pruebas ni de la app.
 
 **Otro ajuste que hizo falta**: por defecto, Vitest recoge cualquier archivo `*.spec.ts`, así que al agregar Playwright empezó a intentar correr sus pruebas como si fueran de Vitest (y fallaban, porque usan la API de Playwright, no la de Vitest). Se agregó `vitest.config.ts` para excluir `e2e/` explícitamente — con esto, `npm test` vuelve a correr limpio (79 pruebas) y `npm run test:e2e` corre las de Playwright por separado.
 
@@ -258,10 +267,10 @@ Lo que queda fuera de este plan (documentado como roadmap desde el principio, nu
 
 No estaba en el plan original, se agregó a pedido. Nueva página **Ajustes** (`/dashboard/ajustes`, enlazada desde el dashboard) con selector Claro / Oscuro / Sistema.
 
-Cómo funciona: todo el sistema de diseño desde la Fase 0 usa variables CSS (`--color-paper`, `--color-ink`, etc.) en vez de colores fijos — los componentes usan clases como `bg-paper` o `text-ink`, nunca un hex directo. Eso significa que el modo oscuro se resuelve *solo* redefiniendo esas variables dentro de una clase `.dark` en `app/globals.css`; no hubo que tocar ninguno de los ~40 archivos de componentes/páginas que ya existían.
+Cómo funciona: todo el sistema de diseño desde la Fase 0 usa variables CSS (`--color-paper`, `--color-ink`, etc.) en vez de colores fijos — los componentes usan clases como `bg-paper` o `text-ink`, nunca un hex directo. Eso significa que el modo oscuro se resuelve _solo_ redefiniendo esas variables dentro de una clase `.dark` en `app/globals.css`; no hubo que tocar ninguno de los ~40 archivos de componentes/páginas que ya existían.
 
 - La preferencia se guarda en `localStorage` (no en la base de datos — es una preferencia del dispositivo, no del usuario).
-- Un script inline en `app/layout.tsx` aplica el tema *antes* de que React hidrate, para evitar el parpadeo típico de "carga en claro y salta a oscuro". `suppressHydrationWarning` en `<html>` es intencional: sin eso, React se queja de que el servidor no sabía qué clase iba a poner ese script.
+- Un script inline en `app/layout.tsx` aplica el tema _antes_ de que React hidrate, para evitar el parpadeo típico de "carga en claro y salta a oscuro". `suppressHydrationWarning` en `<html>` es intencional: sin eso, React se queja de que el servidor no sabía qué clase iba a poner ese script.
 - Si eliges "Sistema", `components/theme-system-listener.tsx` sigue escuchando cambios en el sistema operativo mientras usas la app (no solo al cargar la página).
 - La lógica de qué opción implica modo oscuro (`resolverEsOscuro` en `lib/theme.ts`) es una función pura, con 5 pruebas unitarias (84 en total en el proyecto ahora).
 
@@ -282,13 +291,13 @@ Se reemplazó el sistema de diseño provisional (Fase 0) por la identidad de mar
 
 **Paleta** (`app/globals.css`) — mismos nombres de token de siempre (`bg-primary` es nuevo; `paper`/`ink`/`gold`/`growth`/`alert`/`line` se mantienen, solo cambiaron de valor), así que se re-temátizó toda la app sin tocar componentes, igual que con el modo oscuro:
 
-| Token | Valor | Rol |
-|---|---|---|
-| `--color-primary` | `#6C4DFF` (morado/índigo) | Color de marca — botones, enlaces, barra de progreso |
-| `--color-gold` | `#FFB020` (naranja) | Acento — logros, XP, momentos especiales (mismo rol que antes, color nuevo) |
-| `--color-ink` | `#1F2430` | Texto |
-| `--color-paper` | `#FFFFFF` | Fondo |
-| `--color-line` | `#E9EAF2` | Bordes |
+| Token             | Valor                     | Rol                                                                         |
+| ----------------- | ------------------------- | --------------------------------------------------------------------------- |
+| `--color-primary` | `#6C4DFF` (morado/índigo) | Color de marca — botones, enlaces, barra de progreso                        |
+| `--color-gold`    | `#FFB020` (naranja)       | Acento — logros, XP, momentos especiales (mismo rol que antes, color nuevo) |
+| `--color-ink`     | `#1F2430`                 | Texto                                                                       |
+| `--color-paper`   | `#FFFFFF`                 | Fondo                                                                       |
+| `--color-line`    | `#E9EAF2`                 | Bordes                                                                      |
 
 Se agregó `--color-primary-soft` y un tono `primary` nuevo en `Badge`. Los valores de modo oscuro se rehicieron a partir de esta paleta (no son los mismos de antes).
 
@@ -300,12 +309,12 @@ Se agregó `--color-primary-soft` y un tono `primary` nuevo en `Badge`. Los valo
 
 **Íconos de módulo** (`public/iconos/*.png`) — recortados del moodboard. Coinciden exactos con 3 de los 4 módulos del MVP:
 
-| Ícono | Módulo |
-|---|---|
-| Seguridad (escudo) | Detectar estafas |
-| Contrato (documento) | Contrato de arriendo |
-| Ahorro (alcancía) | Ahorro con metas |
-| Empleo (maletín) | *(sin usar todavía — no hay módulo de empleo en el MVP)* |
+| Ícono                | Módulo                                                   |
+| -------------------- | -------------------------------------------------------- |
+| Seguridad (escudo)   | Detectar estafas                                         |
+| Contrato (documento) | Contrato de arriendo                                     |
+| Ahorro (alcancía)    | Ahorro con metas                                         |
+| Empleo (maletín)     | _(sin usar todavía — no hay módulo de empleo en el MVP)_ |
 
 **Lo que faltaba, si quieres el set completo**: no había un ícono para "Presupuesto personal" en lo que compartiste. Antes que ponerle la alcancía de "Ahorro con metas" (quedarían dos tarjetas con el mismo ícono) o inventar uno que no combine con el estilo pixel-art del resto, lo dejé sin ícono por ahora. Si me pasas uno (o me dices que use el maletín de "Empleo" ahí, aunque no calce del todo semánticamente), lo agrego.
 
@@ -326,13 +335,13 @@ Mismo proceso técnico que la primera ronda: recorte por densidad de contenido (
 
 - `lib/paisaje.ts`: calcula la hora en `America/Bogota` (Colombia no tiene horario de verano, así que esto no necesita ajuste estacional) y la clasifica en 5 franjas con límites de media hora, no horas redondas, para que el amanecer y el atardecer no se sientan instantáneos:
 
-  | Franja | Horario |
-  |---|---|
-  | Amanecer | 4:30 – 6:59 |
-  | Mañana | 7:00 – 10:59 |
-  | Mediodía | 11:00 – 15:59 |
+  | Franja    | Horario       |
+  | --------- | ------------- |
+  | Amanecer  | 4:30 – 6:59   |
+  | Mañana    | 7:00 – 10:59  |
+  | Mediodía  | 11:00 – 15:59 |
   | Atardecer | 16:00 – 18:59 |
-  | Noche | 19:00 – 4:29 |
+  | Noche     | 19:00 – 4:29  |
 
   11 pruebas unitarias sobre los límites exactos (incluyendo el envolvimiento de la noche alrededor de la medianoche).
 
@@ -344,7 +353,6 @@ Mismo proceso técnico que la primera ronda: recorte por densidad de contenido (
 
 **Nota sobre este bloque de trabajo**: a mitad de esta extensión, el entorno donde vengo armando el proyecto se reinició (un problema de infraestructura) y perdí el árbol de archivos en el que estaba trabajando. Lo reconstruí completo desde el último zip entregado + tus imágenes originales (que sí seguían disponibles) + el código exacto que ya había escrito en la conversación — no se perdió ningún avance, pero lo menciono porque es la razón de que este bloque se haya reconstruido "de una sola vez" en vez de en varios pasos.
 
-
 ## Notas técnicas
 
 - Las fuentes (Space Grotesk, IBM Plex Sans, IBM Plex Mono) se cargan por `<link>` en `app/layout.tsx`, no con `next/font/google`, para no depender de acceso a Google Fonts durante el build en cualquier entorno restringido. Si más adelante quieres el rendimiento extra de fuentes autoalojadas, es un cambio pequeño.
@@ -352,10 +360,19 @@ Mismo proceso técnico que la primera ronda: recorte por densidad de contenido (
 
 ## Migración de la API de Claude a la API de Gemini
 
-La capa de IA (`lib/ai/`) originalmente usaba la API de Claude (Anthropic). Se migró a la API de Gemini (`@google/genai`, Google AI Studio) para que un profesor o jurado pueda conseguir su propia API key gratis y sin tarjeta de crédito en `aistudio.google.com/apikey`, en vez de tener que comprar créditos. `MODELO_TUTOR` y `MODELO_PERSONAJE` (en `lib/ai/client.ts`) se quedan en la familia **Flash** a propósito — los modelos Pro de Gemini salieron de la capa gratuita en abril de 2026.
+La capa de IA (`lib/ai/`) originalmente usaba la API de Claude (Anthropic) y luego se migró a Gemini (`@google/genai`). Gemini sigue disponible y es el proveedor predeterminado; la capa intercambiable también permite seleccionar Groq sin cambiar los prompts ni las firmas públicas.
 
-**Incidente del 24 de septiembre de 2026**: en la primera prueba en vivo, el módulo de Detectar Estafas devolvió el JSON crudo de un error 503 de Gemini (`"This model is currently experiencing high demand"`) directo en la pantalla del estudiante. Causa: Google AI Studio reporta que sus modelos "gratis" pueden saturarse momentáneamente bajo demanda alta, algo transitorio y del lado de Google, no un problema de configuración. Se corrigió en `lib/ai/client.ts` con dos cambios que aplican a las 3 funciones de IA (`getTutorFeedback`, `simularArrendador`, `simularEstafador`):
-1. `llamarConReintento()` — reintenta automáticamente (hasta 2 veces, con backoff corto) solo los errores transitorios (HTTP 503 y 429). Cualquier otro error (API key inválida, etc.) no se reintenta.
+**Incidente del 24 de septiembre de 2026**: en la primera prueba en vivo, el módulo de Detectar Estafas devolvió el JSON crudo de un error 503 de Gemini (`"This model is currently experiencing high demand"`) directo en la pantalla del estudiante. Causa: Google AI Studio reporta que sus modelos "gratis" pueden saturarse momentáneamente bajo demanda alta, algo transitorio y del lado de Google, no un problema de configuración. Se corrigió en la capa compartida, que usan las 3 funciones de IA (`getTutorFeedback`, `simularArrendador`, `simularEstafador`):
+
+1. `llamarConReintento()` — reintenta una vez (dos llamadas en total) los errores temporales HTTP 502/503, con backoff corto. No reintenta 429 ni errores de configuración.
 2. `mensajeErrorIA()` — nunca deja pasar el texto crudo del error del SDK al estudiante; siempre devuelve un mensaje en español entendible, y registra el detalle técnico con `console.error` (visible en los logs del servidor/Vercel, no en el navegador).
 
 Si vuelves a ver un error de IA en producción, revisa primero los logs de Vercel (ahí sí aparece el detalle real gracias al `console.error`) antes de asumir que es un bug de configuración.
+
+## Proveedores de IA: Gemini y Groq
+
+Gemini permanece como opción predeterminada. Para usarlo, deja `AI_PROVIDER=gemini` y configura `GEMINI_API_KEY`. Para cambiar a Groq, crea una API key en [Groq Console](https://console.groq.com/keys), configura `AI_PROVIDER=groq` y agrega `GROQ_API_KEY` en `.env.local` y en las variables del entorno de despliegue. La consola ofrece un plan Free sin método de pago; Groq indica que se requiere un método de pago al subir al plan Developer ([preguntas de facturación](https://console.groq.com/docs/billing-faqs)).
+
+Según el [catálogo](https://console.groq.com/docs/models), [límites del plan Free](https://console.groq.com/docs/rate-limits) y [documentación de salidas estructuradas](https://console.groq.com/docs/structured-outputs) consultados el 27 de septiembre de 2026, el tutor usa `openai/gpt-oss-20b` y los personajes `openai/gpt-oss-120b`. Ambos figuran en el plan Free (30 RPM, 1.000 RPD, 8.000 TPM y 200.000 TPD) y admiten JSON Schema estricto. La respuesta del tutor se valida además contra el schema en el servidor. Llama 3.1 8B aparece como Enterprise, no como modelo gratuito; Kimi K2 no aparece en el catálogo actual consultado, así que no se seleccionó ninguno de los dos.
+
+Para volver a Gemini basta con cambiar `AI_PROVIDER=gemini`; no se elimina ni se sustituye `@google/genai` ni su configuración. No se hizo una llamada real a Groq desde las pruebas automatizadas: para validar credenciales, cuota y disponibilidad en vivo hace falta configurar una `GROQ_API_KEY` real.
