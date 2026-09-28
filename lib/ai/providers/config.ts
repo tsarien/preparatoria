@@ -2,7 +2,7 @@ export type AIProviderName = "gemini" | "groq" | "deepseek";
 export type AITask = "tutor" | "personaje";
 
 const MODELOS_POR_PROVEEDOR = {
-  gemini: { tutor: "gemini-flash-lite-latest", personaje: "gemini-2.5-flash" },
+  gemini: { tutor: "gemini-flash-lite-latest", personaje: "gemini-3.8-flash" },
   groq: { tutor: "openai/gpt-oss-20b", personaje: "openai/gpt-oss-120b" },
   deepseek: { tutor: "deepseek-flash", personaje: "deepseek-flash" },
 } as const;

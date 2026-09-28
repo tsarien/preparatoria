@@ -46,6 +46,7 @@ describe("proveedores de IA", () => {
     const config = await import("./config");
     expect(config.getAIProvider()).toBe("gemini");
     expect(config.getAIModel("tutor")).toBe("gemini-flash-lite-latest");
+    expect(config.getAIModel("personaje")).toBe("gemini-3.8-flash");
 
     process.env.AI_PROVIDER = "groq";
     expect(config.getAIModel("tutor")).toBe("openai/gpt-oss-20b");
