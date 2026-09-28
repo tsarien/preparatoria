@@ -1,10 +1,6 @@
-import {
-  getGeminiClient,
-  isAiConfigured,
-  llamarConReintento,
-  mensajeErrorIA,
-  MODELO_PERSONAJE,
-} from "../client";
+import { isAiConfigured, mensajeErrorIA } from "../client";
+import { generateCharacterResponse } from "../providers";
+import { getAIKeyName } from "../providers/config";
 
 export interface MensajeGuia {
   autor: "guia" | "estudiante";
@@ -82,15 +78,9 @@ export async function simularGuia(
   if (!isAiConfigured) {
     return {
       success: false,
-      error: "Falta configurar GEMINI_API_KEY (ver README).",
+      error: `Falta configurar ${getAIKeyName()} (ver README).`,
     };
   }
-  const client = getGeminiClient();
-  if (!client)
-    return {
-      success: false,
-      error: "No se pudo inicializar el cliente de IA.",
-    };
 
   const ultimos = historial.slice(-VENTANA_CONTEXTO);
   if (
@@ -104,28 +94,16 @@ export async function simularGuia(
   }
 
   try {
-    const response = await llamarConReintento(() =>
-      client.models.generateContent({
-        model: MODELO_PERSONAJE,
-        contents: ultimos.map((m) => ({
-          role: m.autor === "estudiante" ? "user" : "model",
-          parts: [{ text: m.texto }],
-        })),
-        config: {
-          systemInstruction: construirSystemPrompt(contexto),
-          maxOutputTokens: 300,
-        },
-      }),
-    );
+    const response = await generateCharacterResponse({
+      systemPrompt: construirSystemPrompt(contexto),
+      historial: ultimos.map((m) => ({
+        role: m.autor === "estudiante" ? "user" : "assistant",
+        content: m.texto,
+      })),
+      maxOutputTokens: 300,
+    });
 
-    if (response.promptFeedback?.blockReason) {
-      return {
-        success: false,
-        error: "La IA no pudo responder a ese mensaje.",
-      };
-    }
-    const finishReason = response.candidates?.[0]?.finishReason;
-    if (finishReason && finishReason !== "STOP") {
+    if (response.blocked || !response.completed) {
       return {
         success: false,
         error: "La IA no pudo responder a ese mensaje.",

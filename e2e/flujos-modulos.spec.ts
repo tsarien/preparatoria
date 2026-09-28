@@ -15,7 +15,9 @@ const aiApiKey =
     ? process.env.GROQ_API_KEY
     : aiProvider === "gemini"
       ? process.env.GEMINI_API_KEY
-      : undefined;
+      : aiProvider === "deepseek"
+        ? process.env.DEEPSEEK_API_KEY
+        : undefined;
 const credencialesListas = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL && aiApiKey,
 );

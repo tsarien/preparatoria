@@ -1,12 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
 export { MODELO_PERSONAJE, MODELO_TUTOR } from "./providers/config";
+import { getAIKeyName } from "./providers/config";
 
 const apiKey = process.env.GEMINI_API_KEY;
 
-export const isAiConfigured =
-  process.env.AI_PROVIDER === "groq"
-    ? Boolean(process.env.GROQ_API_KEY)
-    : Boolean(apiKey);
+export const isAiConfigured = Boolean(process.env[getAIKeyName()]);
 
 export function getGeminiClient(): GoogleGenAI | null {
   if (!apiKey) return null;

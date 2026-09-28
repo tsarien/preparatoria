@@ -2,10 +2,14 @@ import { llamarConReintento } from "../client";
 import { getAIProvider } from "./config";
 import { geminiProvider } from "./gemini";
 import { groqProvider } from "./groq";
+import { deepseekProvider } from "./deepseek";
 import type { AICompletionResult, AIProvider } from "./types";
 
 function getProvider(): AIProvider {
-  return getAIProvider() === "groq" ? groqProvider : geminiProvider;
+  const provider = getAIProvider();
+  if (provider === "groq") return groqProvider;
+  if (provider === "deepseek") return deepseekProvider;
+  return geminiProvider;
 }
 
 export function generateTutorResponse(input: {

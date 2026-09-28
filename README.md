@@ -95,7 +95,7 @@ El corazón de esta fase son dos funciones de Postgres — `registrar_transaccio
 
 Primer módulo de contenido completo, y primera integración real de IA. Establece el patrón que se repite en las Fases 4-6: cada reto vive en su propia carpeta (`page.tsx` + `*-form.tsx` + `actions.ts`), su contenido sale de la tabla `retos` (columna `config`, jsonb) en vez de estar hardcodeado en el componente, y la retroalimentación la da `getTutorFeedback()` en `lib/ai/prompts/tutor.ts`.
 
-**Cómo funciona el tutor de IA**: usa salida estructurada con el schema en `lib/ai/schemas/tutor.ts`; el tipo de TypeScript se infiere de ahí y cada respuesta se valida también en runtime. Con `AI_PROVIDER=gemini` (valor por defecto) Gemini usa `responseJsonSchema`; con `AI_PROVIDER=groq`, Groq usa JSON Schema cuando el modelo lo admite. Consulta la sección de proveedores al final para elegir y configurar cada opción.
+**Cómo funciona el tutor de IA**: usa salida estructurada con el schema en `lib/ai/schemas/tutor.ts`; el tipo de TypeScript se infiere de ahí y cada respuesta se valida también en runtime. Gemini usa `responseJsonSchema`; Groq usa JSON Schema cuando el modelo lo admite; DeepSeek incluye el schema en el prompt y valida la respuesta contra él en código.
 
 Los 3 retos del módulo:
 
@@ -239,7 +239,7 @@ Revisión manual (no pude correr un auditor automático tipo Lighthouse sin un d
 Instalé Playwright y escribí 17 pruebas en dos archivos:
 
 - **`e2e/navegacion-publica.spec.ts`** (13 pruebas): páginas públicas y protección de rutas. No necesitan credenciales reales.
-- **`e2e/flujos-modulos.spec.ts`** (4 pruebas): el flujo completo de cada módulo — registro, login, completar el reto, ver retroalimentación real de la IA. Se saltan solas (`test.skip`) si faltan `NEXT_PUBLIC_SUPABASE_URL` y la clave del proveedor seleccionado (`GEMINI_API_KEY` o `GROQ_API_KEY`) en `.env.local`.
+- **`e2e/flujos-modulos.spec.ts`** (4 pruebas): el flujo completo de cada módulo — registro, login, completar el reto, ver retroalimentación real de la IA. Se saltan solas (`test.skip`) si faltan `NEXT_PUBLIC_SUPABASE_URL` y la clave del proveedor seleccionado (`GEMINI_API_KEY`, `GROQ_API_KEY` o `DEEPSEEK_API_KEY`) en `.env.local`.
 
 **Lo que no pude hacer**: este entorno no tiene acceso de red para descargar los navegadores que Playwright necesita para ejecutarse (`cdn.playwright.dev` no está en la lista de dominios permitidos aquí). Verifiqué todo lo que sí pude sin eso:
 
@@ -369,10 +369,12 @@ La capa de IA (`lib/ai/`) originalmente usaba la API de Claude (Anthropic) y lue
 
 Si vuelves a ver un error de IA en producción, revisa primero los logs de Vercel (ahí sí aparece el detalle real gracias al `console.error`) antes de asumir que es un bug de configuración.
 
-## Proveedores de IA: Gemini y Groq
+## Proveedores de IA: Gemini, Groq y DeepSeek
 
-Gemini permanece como opción predeterminada. Para usarlo, deja `AI_PROVIDER=gemini` y configura `GEMINI_API_KEY`. Para cambiar a Groq, crea una API key en [Groq Console](https://console.groq.com/keys), configura `AI_PROVIDER=groq` y agrega `GROQ_API_KEY` en `.env.local` y en las variables del entorno de despliegue. La consola ofrece un plan Free sin método de pago; Groq indica que se requiere un método de pago al subir al plan Developer ([preguntas de facturación](https://console.groq.com/docs/billing-faqs)).
+Gemini permanece como opción predeterminada. Para usarlo, deja `AI_PROVIDER=gemini` y configura `GEMINI_API_KEY`.
 
-Según el [catálogo](https://console.groq.com/docs/models), [límites del plan Free](https://console.groq.com/docs/rate-limits) y [documentación de salidas estructuradas](https://console.groq.com/docs/structured-outputs) consultados el 27 de septiembre de 2026, el tutor usa `openai/gpt-oss-20b` y los personajes `openai/gpt-oss-120b`. Ambos figuran en el plan Free (30 RPM, 1.000 RPD, 8.000 TPM y 200.000 TPD) y admiten JSON Schema estricto. La respuesta del tutor se valida además contra el schema en el servidor. Llama 3.1 8B aparece como Enterprise, no como modelo gratuito; Kimi K2 no aparece en el catálogo actual consultado, así que no se seleccionó ninguno de los dos.
+**Groq es la opción gratuita continua**, sujeta a cuotas del plan Free y sin método de pago. Para activarlo, crea una clave en [Groq Console](https://console.groq.com/keys), configura `AI_PROVIDER=groq` y `GROQ_API_KEY` en `.env.local` y en las variables del despliegue. Groq pide un método de pago solo al subir al plan Developer ([preguntas de facturación](https://console.groq.com/docs/billing-faqs)). Según el [catálogo](https://console.groq.com/docs/models), los [límites del plan Free](https://console.groq.com/docs/rate-limits) y la documentación de [salidas estructuradas](https://console.groq.com/docs/structured-outputs) consultados el 27 de septiembre de 2026, el tutor usa `openai/gpt-oss-20b` y los personajes `openai/gpt-oss-120b`. Ambos admiten JSON Schema estricto y están sujetos a límites de cuota; Llama 3.1 8B aparece como Enterprise.
 
-Para volver a Gemini basta con cambiar `AI_PROVIDER=gemini`; no se elimina ni se sustituye `@google/genai` ni su configuración. No se hizo una llamada real a Groq desde las pruebas automatizadas: para validar credenciales, cuota y disponibilidad en vivo hace falta configurar una `GROQ_API_KEY` real.
+**DeepSeek es gratis por tiempo limitado, no permanentemente**: el crédito de bienvenida se concede una sola vez al registrarse y vence a los 30 días; después el uso es de pago. Para probarlo, crea una clave en [DeepSeek Platform](https://platform.deepseek.com/api_keys), configura `AI_PROVIDER=deepseek` y `DEEPSEEK_API_KEY`. Según la [documentación oficial de modelos y precios](https://api-docs.deepseek.com/quick_start/pricing) consultada el 27 de septiembre de 2026, el modelo vigente es `deepseek-flash` (DeepSeek V4.1 Flash); ese modelo se usa para tutor y personajes. DeepSeek no documenta JSON Schema en `response_format`: el tutor usa JSON mode con el schema incluido en el prompt y la aplicación valida la respuesta en servidor.
+
+Para alternar entre proveedores basta cambiar `AI_PROVIDER`; no se elimina la configuración de los demás. Los IDs, cuotas y precios pueden cambiar, así que vuelve a consultar las fuentes oficiales antes de una sustentación o despliegue.

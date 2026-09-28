@@ -8,6 +8,7 @@ vi.mock("@google/genai", () => ({
 }));
 
 const ORIGINAL_ENV = process.env.GEMINI_API_KEY;
+const ORIGINAL_PROVIDER = process.env.AI_PROVIDER;
 const CTX = { nombre: "Daniel", nivel: 3, saldoBilletera: 520_000 };
 
 describe("simularGuia", () => {
@@ -15,9 +16,12 @@ describe("simularGuia", () => {
     vi.resetModules();
     generateContentMock.mockReset();
     process.env.GEMINI_API_KEY = "clave-de-prueba";
+    process.env.AI_PROVIDER = "gemini";
   });
   afterEach(() => {
     process.env.GEMINI_API_KEY = ORIGINAL_ENV;
+    if (ORIGINAL_PROVIDER === undefined) delete process.env.AI_PROVIDER;
+    else process.env.AI_PROVIDER = ORIGINAL_PROVIDER;
   });
 
   it("convierte 'estudiante'→'user' y 'guia'→'model', y mete el contexto en systemInstruction", async () => {

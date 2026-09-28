@@ -1,25 +1,31 @@
-export type AIProviderName = "gemini" | "groq";
+export type AIProviderName = "gemini" | "groq" | "deepseek";
 export type AITask = "tutor" | "personaje";
 
 const MODELOS_POR_PROVEEDOR = {
   gemini: { tutor: "gemini-flash-lite-latest", personaje: "gemini-2.5-flash" },
   groq: { tutor: "openai/gpt-oss-20b", personaje: "openai/gpt-oss-120b" },
+  deepseek: { tutor: "deepseek-flash", personaje: "deepseek-flash" },
 } as const;
 
 export function getAIProvider(): AIProviderName {
   const provider = process.env.AI_PROVIDER ?? "gemini";
-  if (provider === "gemini" || provider === "groq") return provider;
-  throw new Error("AI_PROVIDER debe ser 'gemini' o 'groq'.");
+  if (provider === "gemini" || provider === "groq" || provider === "deepseek") {
+    return provider;
+  }
+  throw new Error("AI_PROVIDER debe ser 'gemini', 'groq' o 'deepseek'.");
 }
 
 export function isAIConfigured(): boolean {
-  return getAIProvider() === "groq"
-    ? Boolean(process.env.GROQ_API_KEY)
-    : Boolean(process.env.GEMINI_API_KEY);
+  return Boolean(process.env[getAIKeyName()]);
 }
 
 export function getAIKeyName(): string {
-  return getAIProvider() === "groq" ? "GROQ_API_KEY" : "GEMINI_API_KEY";
+  const keyNames: Record<AIProviderName, string> = {
+    gemini: "GEMINI_API_KEY",
+    groq: "GROQ_API_KEY",
+    deepseek: "DEEPSEEK_API_KEY",
+  };
+  return keyNames[getAIProvider()];
 }
 
 export function getAIModel(task: AITask): string {
@@ -33,7 +39,12 @@ export function supportsGroqJsonSchema(task: AITask): boolean {
   );
 }
 
-const proveedorInicial = process.env.AI_PROVIDER === "groq" ? "groq" : "gemini";
+const proveedorInicial =
+  process.env.AI_PROVIDER === "groq"
+    ? "groq"
+    : process.env.AI_PROVIDER === "deepseek"
+      ? "deepseek"
+      : "gemini";
 export const MODELO_TUTOR = MODELOS_POR_PROVEEDOR[proveedorInicial].tutor;
 export const MODELO_PERSONAJE =
   MODELOS_POR_PROVEEDOR[proveedorInicial].personaje;
