@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Wrench } from "lucide-react";
+import { Wrench } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { xpEnNivelActual, XP_POR_NIVEL } from "@/lib/gamification";
 import type { Personaje, Transaccion } from "@/types/database";
@@ -11,6 +10,7 @@ import { simularXp } from "./actions";
 import { WalletHero } from "@/components/game/wallet-hero";
 import { TransactionRow } from "@/components/game/transaction-row";
 import { GameModuleShell } from "@/components/game/game-module-shell";
+import { GameBackButton } from "@/components/game/game-back-button";
 
 type PersonajeResumen = Pick<
   Personaje,
@@ -68,16 +68,7 @@ export default async function BilleteraPage() {
     <GameModuleShell ancho="estandar">
       {/* Encabezado simple — esta no es una misión, es el inventario del personaje */}
       <header className="flex flex-col gap-3">
-        <Link
-          href="/dashboard"
-          className="group inline-flex w-fit items-center gap-1.5 text-sm text-ink-soft transition-colors duration-150 hover:text-ink"
-        >
-          <ArrowLeft
-            className="h-4 w-4 transition-transform duration-150 group-hover:-translate-x-0.5 motion-reduce:transition-none"
-            aria-hidden="true"
-          />
-          Volver al dashboard
-        </Link>
+        <GameBackButton href="/dashboard" label="Volver al dashboard" />
         <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">
           Tu billetera
         </h1>
@@ -134,42 +125,44 @@ export default async function BilleteraPage() {
       </section>
 
       {/* Herramienta de prueba — claramente diferenciada del contenido real */}
-      <Card tone="game" className="border-dashed">
-        <div className="flex flex-col gap-4 p-5">
-          <div className="flex items-center gap-2.5">
-            <span
-              aria-hidden="true"
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border-2 border-line bg-paper text-ink-soft"
-            >
-              <Wrench className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="font-display text-sm font-semibold text-ink">
-                Herramienta de prueba
-              </p>
-              <p className="text-xs text-ink-soft">
-                Solo para ti — simula movimientos y otorga XP para ver el
-                sistema en acción.
-              </p>
+      {process.env.NODE_ENV !== "production" && (
+        <Card tone="game" className="border-dashed">
+          <div className="flex flex-col gap-4 p-5">
+            <div className="flex items-center gap-2.5">
+              <span
+                aria-hidden="true"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border-2 border-line bg-paper text-ink-soft"
+              >
+                <Wrench className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-display text-sm font-semibold text-ink">
+                  Herramienta de prueba
+                </p>
+                <p className="text-xs text-ink-soft">
+                  Solo para ti — simula movimientos y otorga XP para ver el
+                  sistema en acción.
+                </p>
+              </div>
+            </div>
+
+            <BilleteraForm />
+
+            <div className="border-t border-line pt-4">
+              <form action={simularXp}>
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  className="press"
+                >
+                  Otorgar 50 XP (prueba)
+                </Button>
+              </form>
             </div>
           </div>
-
-          <BilleteraForm />
-
-          <div className="border-t border-line pt-4">
-            <form action={simularXp}>
-              <Button
-                type="submit"
-                variant="outline"
-                size="sm"
-                className="press"
-              >
-                Otorgar 50 XP (prueba)
-              </Button>
-            </form>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      )}
     </GameModuleShell>
   );
 }

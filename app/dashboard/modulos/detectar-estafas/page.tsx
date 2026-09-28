@@ -46,8 +46,8 @@ export default async function ModuloEstafasPage() {
     .returns<ProgresoResumen[]>();
 
   const progresoPorReto = new Map((progresos ?? []).map((p) => [p.reto_id, p]));
-  const completados = [...progresoPorReto.values()].filter(
-    (p) => p.estado === "completado",
+  const completados = (retos ?? []).filter(
+    (reto) => progresoPorReto.get(reto.id)?.estado === "completado",
   ).length;
 
   return (

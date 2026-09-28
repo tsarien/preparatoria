@@ -8,11 +8,17 @@ import { test, expect } from "@playwright/test";
  */
 
 test.describe("Páginas públicas", () => {
-  test("la landing muestra el nombre del producto y los botones de entrada", async ({ page }) => {
+  test("la landing muestra el nombre del producto y los botones de entrada", async ({
+    page,
+  }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Crear cuenta" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Ya tengo cuenta" })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Crear cuenta" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Ya tengo cuenta" }),
+    ).toBeVisible();
   });
 
   test("/login muestra el formulario de inicio de sesión", async ({ page }) => {
@@ -29,17 +35,28 @@ test.describe("Páginas públicas", () => {
     await expect(page.getByLabel("Colegio")).toBeVisible();
   });
 
-  test("el formulario de registro pide el correo del acudiente si eres menor de edad", async ({ page }) => {
+  test("el formulario de registro pide el correo del acudiente si eres menor de edad", async ({
+    page,
+  }) => {
     await page.goto("/registro");
+    await expect(page.locator('form[data-hidratado="true"]')).toBeVisible();
     const hoy = new Date();
-    const hace15Anos = new Date(hoy.getFullYear() - 15, hoy.getMonth(), hoy.getDate());
-    await page.getByLabel("Fecha de nacimiento").fill(hace15Anos.toISOString().slice(0, 10));
+    const hace15Anos = new Date(
+      hoy.getFullYear() - 15,
+      hoy.getMonth(),
+      hoy.getDate(),
+    );
+    await page
+      .getByLabel("Fecha de nacimiento")
+      .fill(hace15Anos.toISOString().slice(0, 10));
     await expect(page.getByLabel("Correo de tu acudiente")).toBeVisible();
   });
 
   test("/privacidad carga la política de privacidad", async ({ page }) => {
     await page.goto("/privacidad");
-    await expect(page.getByRole("heading", { name: "Política de privacidad" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Política de privacidad" }),
+    ).toBeVisible();
   });
 });
 

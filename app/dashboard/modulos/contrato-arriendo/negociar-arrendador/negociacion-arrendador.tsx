@@ -96,7 +96,7 @@ export function NegociacionArrendador({
           <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
             En conversación con
           </p>
-          <p className="truncate text-sm font-medium text-ink">
+          <p className="wrap-break-word text-sm font-medium text-ink">
             {NOMBRE_ARRENDADOR}
           </p>
         </div>

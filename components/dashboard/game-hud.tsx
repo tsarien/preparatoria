@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Settings, Trophy } from "lucide-react";
+import { Settings, Sparkles, Trophy } from "lucide-react";
 import { ProgressBar } from "@/components/ui/progress-bar";
 
 interface GameHUDProps {
@@ -15,7 +15,7 @@ interface GameHUDProps {
  * Barra HUD del dashboard. Reemplaza al antiguo header + card "Mi Vida Simulada".
  *
  * Layout:
- *   ≥lg → una sola fila: [identidad] [saldo] [nivel+xp] [ranking] [ajustes]
+ *   ≥lg → una sola fila: [identidad] [saldo] [nivel+xp] [guía] [ranking] [ajustes]
  *   <lg → dos filas:  [logo + saludo]  y  [stats + acciones]
  *
  * Es un Server Component a propósito: no tiene estado ni eventos.
@@ -54,7 +54,7 @@ export function GameHUD({
           >
             {inicial}
           </span>
-          <p className="min-w-0 flex-1 truncate font-display text-base font-semibold leading-tight text-ink sm:text-lg">
+          <p className="min-w-0 flex-1 wrap-break-word font-display text-base font-semibold leading-tight text-ink sm:text-lg">
             Hola, <span className="text-primary">{nombre}</span>
           </p>
         </div>
@@ -105,6 +105,13 @@ export function GameHUD({
         {/* Acciones */}
         <div className="flex items-center gap-2 lg:flex-none">
           <Link
+            href="/dashboard/guia"
+            className="game-chip flex h-10 items-center gap-2 rounded-xl border-2 border-primary/50 bg-primary-soft px-3 text-sm font-medium text-ink transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none"
+          >
+            <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+            <span className="hidden sm:inline">Guía</span>
+          </Link>
+          <Link
             href="/dashboard/ranking"
             className="game-chip flex h-10 items-center gap-2 rounded-xl border-2 border-gold/50 bg-gold-soft px-3 text-sm font-medium text-ink transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none"
           >
@@ -113,7 +120,7 @@ export function GameHUD({
           </Link>
           <Link
             href="/dashboard/ajustes"
-            aria-label="Ajustes"
+            aria-label="Perfil"
             className="game-chip grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 border-primary/30 bg-paper-raised text-ink-soft transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none"
           >
             <Settings className="h-4 w-4" aria-hidden="true" />

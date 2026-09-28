@@ -1,7 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { GameStateBadge, type GameEstado } from "./game-state-badge";
+import { GameBackButton } from "./game-back-button";
 import { ProgressBar } from "@/components/ui/progress-bar";
 
 interface GameMissionHeaderProps {
@@ -53,16 +52,7 @@ export function GameMissionHeader({
 }: GameMissionHeaderProps) {
   return (
     <header className="flex flex-col gap-4">
-      <Link
-        href={volverHref}
-        className="group inline-flex w-fit items-center gap-1.5 text-sm text-ink-soft transition-colors duration-150 hover:text-ink"
-      >
-        <ArrowLeft
-          className="h-4 w-4 transition-transform duration-150 group-hover:-translate-x-0.5 motion-reduce:transition-none"
-          aria-hidden="true"
-        />
-        {volverEtiqueta}
-      </Link>
+      <GameBackButton href={volverHref} label={volverEtiqueta} />
 
       <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider">
         <span className="rounded-md border border-primary/40 bg-primary-soft px-2 py-0.5 text-primary">

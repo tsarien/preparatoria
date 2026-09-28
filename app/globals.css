@@ -9,12 +9,15 @@
     anterior, pero ahora representa el ACENTO de marca (#FFB020): logros, XP,
     momentos especiales — el mismo rol que cumplía antes, solo con el color
     nuevo. No lo uses como decoración suelta.
+  - "turquoise"               -> acento semántico para IA Guía y progreso/XP.
+    No se usa como decoración suelta.
   - "growth" / "alert"        -> uso semántico: ingreso vs. gasto, correcto
     vs. error. No son colores de marca, son significado.
-  - "ink" / "ink-soft"        -> texto. "paper" / "line"                 -> fondo y bordes.
+  - "ink" / "ink-soft"        -> texto. "paper" / "line" -> fondo y bordes.
 */
 
 @theme {
+  /* ── Colores ─────────────────────────────────────────────────────── */
   --color-paper: #ffffff;
   --color-paper-raised: #ffffff;
   --color-ink: #1f2430;
@@ -23,20 +26,58 @@
   --color-primary-soft: #efeaff;
   --color-gold: #ffb020;
   --color-gold-soft: #fff3de;
+  --color-turquoise: #00d9cc; /* IA Guía y progreso */
+  --color-turquoise-soft: #d6faf7;
   --color-growth: #1f9d63;
   --color-growth-soft: #e3f7ec;
   --color-alert: #e6493c;
   --color-alert-soft: #fde9e7;
   --color-line: #e9eaf2;
 
+  /* ── Radios ──────────────────────────────────────────────────────── */
+  /* Nota: sobrescriben defaults de Tailwind. Si algún `rounded-sm` de la app
+     esperaba 0.25rem, ahora mide 0.5rem. Revisar antes de mergear. */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+
+  /* ── Sombras game-feel ───────────────────────────────────────────── */
+  /* Prefijo "edge-" deliberado: evita colisión con `shadow-primary` (color).
+     Uso: `shadow-edge`, `shadow-edge-primary`, etc. */
+  --shadow-flat: 0 1px 3px rgb(31 36 48 / 0.07);
+  --shadow-edge: 0 3px 0 rgb(31 36 48 / 0.15);
+  --shadow-edge-soft: 0 2px 0 rgb(31 36 48 / 0.1);
+  --shadow-edge-primary: 0 3px 0 rgb(108 77 255 / 0.3);
+  --shadow-edge-gold: 0 3px 0 rgb(255 176 32 / 0.35);
+  --shadow-edge-growth: 0 3px 0 rgb(31 157 99 / 0.3);
+  --shadow-edge-alert: 0 3px 0 rgb(230 73 60 / 0.3);
+
+  /* ── Glows ───────────────────────────────────────────────────────── */
+  --glow-primary: 0 0 12px rgb(108 77 255 / 0.45);
+  --glow-gold: 0 0 12px rgb(255 176 32 / 0.5);
+  --glow-turquoise: 0 0 12px rgb(0 217 204 / 0.45);
+
+  /* ── Transiciones ────────────────────────────────────────────────── */
+  /* No son namespace de Tailwind (excepto --ease-*). Sirven como variables
+     legibles; para usarlas en clases: `transition-[var(--transition-fast)]`. */
+  --transition-fast: 150ms ease-out;
+  --transition-base: 200ms ease-out;
+  --transition-slow: 300ms ease-out;
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Fuentes ─────────────────────────────────────────────────────── */
   --font-display: "Baloo 2", ui-rounded, system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
 
-  /* Movimiento. Solo animamos transform/opacity (baratas y sin saltos de
-     layout) y NUNCA en el eje X — un slide horizontal puede generar scroll
-     lateral transitorio en 320px. Duraciones en el rango de lo que ya usa la
-     app (duration-150 en botones, duration-300 en la barra de progreso). */
+  /* ── Animaciones ─────────────────────────────────────────────────── */
+  /* Solo animamos transform/opacity (baratas y sin saltos de layout) y NUNCA
+     en el eje X — un slide horizontal puede generar scroll lateral transitorio
+     en 320px. Duraciones en el rango de lo que ya usa la app (duration-150 en
+     botones, duration-300 en la barra de progreso). */
   --animate-fade-up: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-pop: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-stamp: stamp 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) both;
@@ -188,6 +229,75 @@
     0 3px 0 color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
+/* Bisel estándar de "game" — borde-2 + sombra inferior sólida.
+   Reemplaza el patrón `border-2 border-primary/40 shadow-[0_3px_0_...]` que
+   se repite en ~20 sitios. El color del borde lo define cada llamador
+   (border-primary/40, border-gold/50, etc.); esta utilidad solo aporta
+   grosor, estilo y la sombra de profundidad. */
+@utility game-edge {
+  border-width: 2px;
+  border-style: solid;
+  box-shadow:
+    var(--shadow-edge-soft),
+    inset 0 1px 0 rgb(255 255 255 / 0.12);
+}
+
+/* Halo de marca para medallones (icono grande en el header de una misión).
+   Reemplaza `border-2 border-primary/40 bg-primary-soft shadow-[0_3px_0_...]`. */
+@utility game-medallion {
+  border-width: 2px;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  background-color: var(--color-primary-soft);
+  box-shadow: var(--shadow-edge-primary);
+}
+
+/* Tinte de fondo para el shell de páginas — halo radial superior + patrón
+   pixel-dot. Reemplaza el bloque de 2 <span> aria-hidden que se repite en
+   GameModuleShell.
+   `isolation: isolate` crea un stacking context propio: sin él, los
+   pseudo-elementos con z-index: 0 podrían quedar detrás del background del
+   padre y el efecto se vuelve invisible. */
+@utility game-atmosphere {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 18rem;
+    background: radial-gradient(
+      ellipse at top,
+      color-mix(in srgb, var(--color-primary) 18%, transparent),
+      transparent 70%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      color-mix(in srgb, var(--color-primary) 12%, transparent) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+  /* El contenido del shell debe quedar por encima de ambos pseudo-elementos.
+     Si el shell no envuelve children en un contenedor con `relative z-10`,
+     añadirlo o los pseudo-elementos taparán el contenido. */
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
 /* Pulso del nodo activo en el mapa — "esta es tu siguiente misión" */
 @utility pulse-mission {
   animation: pulse-mission 2.2s ease-out infinite;
@@ -235,6 +345,8 @@
     --color-primary-soft: #2c2450;
     --color-gold: #ffc15c;
     --color-gold-soft: #3d2e10;
+    --color-turquoise: #3ee8dd;
+    --color-turquoise-soft: #0d3330;
     --color-growth: #4ade80;
     --color-growth-soft: #16301f;
     --color-alert: #f87171;

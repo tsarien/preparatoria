@@ -1,6 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { GameBackButton } from "@/components/game/game-back-button";
 import { cn } from "@/lib/utils";
 
 /** Ícono pixel art de cada módulo (los mismos que usa la portada del dashboard). */
@@ -41,23 +40,14 @@ export function EncabezadoPagina({
 
   return (
     <header className="flex flex-col gap-4">
-      <Link
-        href={volverHref}
-        className="group inline-flex w-fit items-center gap-1.5 text-sm text-ink-soft transition-colors duration-150 hover:text-ink"
-      >
-        <ArrowLeft
-          className="h-4 w-4 transition-transform duration-150 group-hover:-translate-x-0.5 motion-reduce:transition-none"
-          aria-hidden="true"
-        />
-        {volverEtiqueta}
-      </Link>
+      <GameBackButton href={volverHref} label={volverEtiqueta} />
 
       <div className="flex items-center gap-4">
         {icono && (
           <div
             className={cn(
               "grid shrink-0 animate-pop place-items-center rounded-2xl border border-line bg-primary-soft",
-              grande ? "h-20 w-20 sm:h-24 sm:w-24" : "h-14 w-14"
+              grande ? "h-20 w-20 sm:h-24 sm:w-24" : "h-14 w-14",
             )}
           >
             <Image
@@ -72,7 +62,7 @@ export function EncabezadoPagina({
         <h1
           className={cn(
             "min-w-0 break-words font-display font-semibold text-ink",
-            grande ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl"
+            grande ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl",
           )}
         >
           {titulo}

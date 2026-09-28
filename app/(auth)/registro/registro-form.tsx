@@ -1,11 +1,24 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
-import { User, Calendar, School, GraduationCap, Mail, Lock } from "lucide-react";
+import {
+  User,
+  Calendar,
+  School,
+  GraduationCap,
+  Mail,
+  Lock,
+} from "lucide-react";
 import { registrarEstudiante, type RegistroState } from "./actions";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { CampoConIcono } from "@/components/ui/campo-con-icono";
 
 const ESTADO_INICIAL: RegistroState = {};
@@ -18,14 +31,21 @@ function esMenorDeEdad(fechaNacimiento: string): boolean {
   let edad = hoy.getFullYear() - nacimiento.getFullYear();
   const noHaCumplidoAunEsteAno =
     hoy.getMonth() < nacimiento.getMonth() ||
-    (hoy.getMonth() === nacimiento.getMonth() && hoy.getDate() < nacimiento.getDate());
+    (hoy.getMonth() === nacimiento.getMonth() &&
+      hoy.getDate() < nacimiento.getDate());
   if (noHaCumplidoAunEsteAno) edad -= 1;
   return edad < 18;
 }
 
 export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
-  const [state, formAction, isPending] = useActionState(registrarEstudiante, ESTADO_INICIAL);
+  const [state, formAction, isPending] = useActionState(
+    registrarEstudiante,
+    ESTADO_INICIAL,
+  );
   const [fechaNacimiento, setFechaNacimiento] = useState("");
+  const [hidratado, setHidratado] = useState(false);
+
+  useEffect(() => setHidratado(true), []);
 
   if (state.needsConfirmation) {
     return (
@@ -33,8 +53,8 @@ export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
         <CardHeader>
           <CardTitle>Revisa tu correo</CardTitle>
           <CardDescription>
-            Te enviamos un enlace de confirmación. Ábrelo para activar tu cuenta y luego inicia
-            sesión.
+            Te enviamos un enlace de confirmación. Ábrelo para activar tu cuenta
+            y luego inicia sesión.
           </CardDescription>
         </CardHeader>
         {state.enlaceConsentimiento && (
@@ -52,8 +72,8 @@ export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
         <CardHeader>
           <CardTitle>Cuenta creada</CardTitle>
           <CardDescription>
-            Como eres menor de edad, tu acudiente necesita autorizar la cuenta antes de que quede
-            activa por completo.
+            Como eres menor de edad, tu acudiente necesita autorizar la cuenta
+            antes de que quede activa por completo.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -70,11 +90,23 @@ export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
     <Card className={TARJETA}>
       <CardHeader>
         <CardTitle>¡Bienvenido a preparatorIA!</CardTitle>
-        <CardDescription>Crea tu cuenta y empieza a construir un mejor futuro.</CardDescription>
+        <CardDescription>
+          Crea tu cuenta y empieza a construir un mejor futuro.
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
-          <CampoConIcono icon={User} label="Nombre completo" name="nombre" type="text" required />
+        <form
+          action={formAction}
+          className="flex flex-col gap-4"
+          data-hidratado={hidratado}
+        >
+          <CampoConIcono
+            icon={User}
+            label="Nombre completo"
+            name="nombre"
+            type="text"
+            required
+          />
           <CampoConIcono
             icon={Calendar}
             label="Fecha de nacimiento"
@@ -107,7 +139,12 @@ export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
             </datalist>
           </div>
 
-          <CampoConIcono icon={GraduationCap} label="Curso (ej. 11-A)" name="curso" type="text" />
+          <CampoConIcono
+            icon={GraduationCap}
+            label="Curso (ej. 11-A)"
+            name="curso"
+            type="text"
+          />
 
           {esMenorDeEdad(fechaNacimiento) && (
             <div className="rounded-xl border border-gold/40 bg-gold-soft p-3">
@@ -122,8 +159,21 @@ export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
             </div>
           )}
 
-          <CampoConIcono icon={Mail} label="Correo" name="correo" type="email" required />
-          <CampoConIcono icon={Lock} label="Contraseña" name="password" type="password" required minLength={8} />
+          <CampoConIcono
+            icon={Mail}
+            label="Correo"
+            name="correo"
+            type="email"
+            required
+          />
+          <CampoConIcono
+            icon={Lock}
+            label="Contraseña"
+            name="password"
+            type="password"
+            required
+            minLength={8}
+          />
 
           {state.error && (
             <p className="text-sm text-alert" role="alert">
@@ -146,7 +196,10 @@ export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
 
         <p className="mt-4 text-sm text-ink-soft">
           ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="font-medium text-ink underline underline-offset-2">
+          <Link
+            href="/login"
+            className="font-medium text-ink underline underline-offset-2"
+          >
             Inicia sesión
           </Link>
         </p>
@@ -158,9 +211,12 @@ export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
 function EnlaceConsentimientoFallback({ enlace }: { enlace: string }) {
   return (
     <div className="rounded-xl border border-gold/40 bg-gold-soft p-3 text-sm text-ink">
-      <p className="font-medium">Todavía no hay envío de correo configurado (ver README).</p>
+      <p className="font-medium">
+        Todavía no hay envío de correo configurado (ver README).
+      </p>
       <p className="mt-1 text-ink-soft">
-        Para probar el flujo de todos modos, comparte este enlace con el acudiente:
+        Para probar el flujo de todos modos, comparte este enlace con el
+        acudiente:
       </p>
       <code className="mt-2 block break-all rounded bg-paper-raised px-2 py-1 font-mono text-xs">
         {enlace}

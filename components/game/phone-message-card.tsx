@@ -74,10 +74,10 @@ export function PhoneMessageCard({
           {remitente.trim().charAt(0).toUpperCase() || "?"}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-white/50">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/50">
             {esCorreo ? "De" : "Remitente"}
           </p>
-          <p className="truncate text-sm font-medium text-white/90">
+          <p className="wrap-break-word text-sm font-medium text-white/90">
             {remitente}
           </p>
         </div>

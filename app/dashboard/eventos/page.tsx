@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { GameModuleShell } from "@/components/game/game-module-shell";
+import { GameBackButton } from "@/components/game/game-back-button";
 import { EventosLista } from "./eventos-lista";
 import type { EventoAleatorio } from "@/types/database";
 
@@ -35,16 +34,7 @@ export default async function EventosPage() {
   return (
     <GameModuleShell ancho="compacto">
       <header className="flex flex-col gap-3">
-        <Link
-          href="/dashboard"
-          className="group inline-flex w-fit items-center gap-1.5 text-sm text-ink-soft transition-colors duration-150 hover:text-ink"
-        >
-          <ArrowLeft
-            className="h-4 w-4 transition-transform duration-150 group-hover:-translate-x-0.5 motion-reduce:transition-none"
-            aria-hidden="true"
-          />
-          Volver al dashboard
-        </Link>
+        <GameBackButton href="/dashboard" label="Volver al dashboard" />
 
         <div className="flex items-center gap-4">
           <div className="grid h-14 w-14 shrink-0 animate-pop place-items-center rounded-2xl border-2 border-gold/60 bg-gold-soft shadow-[0_3px_0_rgba(255,176,32,0.35)] sm:h-16 sm:w-16">

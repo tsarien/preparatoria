@@ -68,7 +68,7 @@ export function MyRankCard({
                 >
                   {inicial}
                 </span>
-                <span className="truncate text-sm font-semibold text-ink">
+                <span className="wrap-break-word text-sm font-semibold text-ink">
                   {nombre}
                 </span>
               </span>

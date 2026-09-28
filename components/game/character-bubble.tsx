@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -7,7 +8,9 @@ interface CharacterBubbleProps {
   /** Inicial para el avatar. Si no se pasa, la primera letra del nombre. */
   inicial?: string;
   /** Quién habla — define color de la burbuja y del avatar. */
-  tono: "yo" | "arrendador" | "estafador";
+  tono: "yo" | "arrendador" | "estafador" | "guia";
+  /** Ruta a un PNG en /public. Si viene, reemplaza el avatar-inicial. */
+  avatarSrc?: string;
   children: ReactNode;
 }
 
@@ -27,38 +30,54 @@ const TONOS = {
     avatar: "border-alert/50 bg-alert text-white",
     row: "justify-start",
   },
+  guia: {
+    bubble:
+      "border-2 border-turquoise/50 bg-turquoise-soft text-ink rounded-bl-md",
+    avatar: "border-turquoise/60 bg-turquoise-soft",
+    row: "justify-start",
+  },
 };
 
 /**
  * Burbuja de diálogo con avatar de personaje. Se usa en las simulaciones
- * conversacionales (arrendador, estafador). El avatar es un círculo con la
- * inicial — no hay sprites de personajes todavía (ver "ASSETS NECESARIOS").
- *
- * No reemplaza a BurbujaChat (que sigue en uso en el módulo de estafas sin
- * avatar). Este componente es una variante enriquecida.
+ * conversacionales (arrendador, estafador, guía). Si no hay `avatarSrc`,
+ * muestra un círculo con la inicial del nombre.
  */
 export function CharacterBubble({
   nombre,
   inicial,
   tono,
+  avatarSrc,
   children,
 }: CharacterBubbleProps) {
   const t = TONOS[tono];
   const letra = (inicial ?? nombre.trim().charAt(0) ?? "?").toUpperCase();
 
+  const avatar = (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full border-2 font-display text-sm font-bold shadow-[0_2px_0_rgba(31,36,48,0.15)]",
+        t.avatar,
+      )}
+    >
+      {avatarSrc ? (
+        <Image
+          src={avatarSrc}
+          alt=""
+          width={64}
+          height={64}
+          className="h-7 w-7 object-contain"
+        />
+      ) : (
+        letra
+      )}
+    </span>
+  );
+
   return (
     <div className={cn("flex max-w-full items-end gap-2", t.row)}>
-      {tono !== "yo" && (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 font-display text-sm font-bold shadow-[0_2px_0_rgba(31,36,48,0.15)]",
-            t.avatar,
-          )}
-        >
-          {letra}
-        </span>
-      )}
+      {tono !== "yo" && avatar}
       <div
         className={cn(
           "flex max-w-[calc(100%-3rem)] flex-col gap-0.5 sm:max-w-[75%]",
@@ -70,24 +89,14 @@ export function CharacterBubble({
         </span>
         <div
           className={cn(
-            "animate-fade-up break-words rounded-2xl px-3.5 py-2.5 text-sm",
+            "animate-fade-up break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
             t.bubble,
           )}
         >
           {children}
         </div>
       </div>
-      {tono === "yo" && (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 font-display text-sm font-bold",
-            t.avatar,
-          )}
-        >
-          {letra}
-        </span>
-      )}
+      {tono === "yo" && avatar}
     </div>
   );
 }
