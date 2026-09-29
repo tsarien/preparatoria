@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 /** Ícono pixel art de cada módulo (los mismos que usa la portada del dashboard). */
 export const ICONO_MODULO: Record<string, string> = {
   "presupuesto-personal": "/iconos/icono-presupuesto.png",
+  "primer-empleo": "/iconos/icono-empleo.png",
   "detectar-estafas": "/iconos/icono-seguridad.png",
   "contrato-arriendo": "/iconos/icono-contrato.png",
   "ahorro-metas": "/iconos/icono-ahorro.png",

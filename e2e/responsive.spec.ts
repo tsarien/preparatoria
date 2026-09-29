@@ -1,6 +1,12 @@
 import { test, expect } from "@playwright/test";
 
-const paginasPublicas = ["/", "/login", "/registro", "/privacidad"];
+const paginasPublicas = [
+  "/",
+  "/login",
+  "/registro",
+  "/registro/educador",
+  "/privacidad",
+];
 const anchos = [320, 360, 375, 390, 430, 768, 1024, 1280, 1440];
 
 for (const ancho of anchos) {

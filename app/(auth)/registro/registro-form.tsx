@@ -37,7 +37,11 @@ function esMenorDeEdad(fechaNacimiento: string): boolean {
   return edad < 18;
 }
 
-export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
+export function RegistroForm({
+  colegios,
+}: {
+  colegios: { id: string; nombre: string }[];
+}) {
   const [state, formAction, isPending] = useActionState(
     registrarEstudiante,
     ESTADO_INICIAL,
@@ -123,20 +127,28 @@ export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
             </label>
             <div className="relative">
               <School className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-              <input
+              <select
                 id="colegio"
-                name="colegio"
-                list="colegios-sugeridos"
+                name="colegio_id"
                 required
-                placeholder="Escribe el nombre — si no aparece, lo creamos"
-                className="h-11 w-full rounded-xl border border-line bg-paper/70 pl-10 pr-3 text-sm text-ink outline-none focus-visible:border-primary"
-              />
+                defaultValue=""
+                aria-describedby="colegio-ayuda"
+                className="h-11 w-full appearance-none rounded-xl border border-line bg-paper-raised pl-10 pr-3 text-sm text-ink outline-none focus-visible:border-primary"
+              >
+                <option value="" disabled>
+                  Selecciona tu colegio
+                </option>
+                {colegios.map((colegio) => (
+                  <option key={colegio.id} value={colegio.id}>
+                    {colegio.nombre}
+                  </option>
+                ))}
+              </select>
             </div>
-            <datalist id="colegios-sugeridos">
-              {colegios.map((c) => (
-                <option key={c.nombre} value={c.nombre} />
-              ))}
-            </datalist>
+            <p id="colegio-ayuda" className="text-xs text-ink-soft">
+              ¿No encuentras tu colegio? Solicita a tu institución que se
+              comunique con preparatorIA.
+            </p>
           </div>
 
           <CampoConIcono
@@ -201,6 +213,15 @@ export function RegistroForm({ colegios }: { colegios: { nombre: string }[] }) {
             className="font-medium text-ink underline underline-offset-2"
           >
             Inicia sesión
+          </Link>
+        </p>
+        <p className="mt-2 text-sm text-ink-soft">
+          ¿Eres profesor o personal educativo?{" "}
+          <Link
+            href="/registro/educador"
+            className="font-medium text-ink underline underline-offset-2"
+          >
+            Crear cuenta educativa
           </Link>
         </p>
       </CardContent>

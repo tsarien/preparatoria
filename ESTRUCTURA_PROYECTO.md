@@ -21,7 +21,7 @@ Cada ruta de la app sigue el mismo patrón de 3 archivos, así que en vez de ano
 - **`lib/`** — toda la lógica de negocio, organizada por dominio (`wallet`, `gamification`, `presupuesto`, `estafas`, `contrato`, `ahorro`, `eventos`, `theme`). Cada archivo de lógica pura tiene su `.test.ts` al lado.
   - `lib/ai/` — la capa de IA: `client.ts` (reintentos y mensajes de error), `providers/` (selección de Gemini/Groq/DeepSeek, modelos por tarea y validación estructurada), `prompts/` (tutor, estafador, arrendador y guía), `schemas/` (salidas estructuradas). `AI_PROVIDER` selecciona el proveedor; Gemini es el valor predeterminado.
   - `lib/supabase/` — los 3 clientes (browser, server, middleware) de la Fase 1.
-- **`supabase/migrations/`** — las 9 migraciones SQL, en orden — es la fuente de verdad del modelo de datos.
+- **`supabase/migrations/`** — las migraciones SQL, en orden — es la fuente de verdad del modelo de datos; ahora incluye el módulo Primer empleo, roles educativos, consultas docentes minimizadas y auditoría de perfil.
 - **`e2e/`** — pruebas de Playwright (end-to-end).
 - **`types/database.ts`** — los tipos de TypeScript de cada tabla.
 - Raíz del proyecto — configuración (`next.config.ts`, `tsconfig.json`, `playwright.config.ts`, `vitest.config.ts`, `postcss.config.mjs`), `proxy.ts` (sesión de Supabase en cada request), y la documentación (`README.md`, `PLAN_DESARROLLO.md`, `MANUAL_USUARIO.md`).

@@ -9,15 +9,56 @@ export interface Colegio {
   codigo_institucional: string | null;
 }
 
+export type RolPerfil = "estudiante" | "educador" | "administrador";
+
 export interface Perfil {
   id: string;
   nombre: string;
   fecha_nacimiento: string | null;
   colegio_id: string | null;
   curso: string | null;
-  rol: string;
+  rol: RolPerfil;
   correo_acudiente: string | null;
   consentimiento_acudiente: "pendiente" | "aprobado";
+  cargo_educativo: string | null;
+  area_educativa: string | null;
+  cursos_educativos: string[];
+  avatar_id: string;
+  creado_en: string;
+}
+
+export interface CambioPerfil {
+  id: string;
+  usuario_id: string;
+  tipo_cambio:
+    | "nombre_modificado"
+    | "correo_modificado"
+    | "colegio_modificado"
+    | "curso_modificado"
+    | "avatar_modificado";
+  descripcion: string;
+  creado_en: string;
+}
+
+export interface InvitacionEducador {
+  id: string;
+  colegio_id: string;
+  correo_institucional: string;
+  codigo_hash: string;
+  expira_en: string;
+  usada_en: string | null;
+  creada_en: string;
+}
+
+export interface InformeEducativo {
+  id: string;
+  educador_id: string;
+  colegio_id: string;
+  estudiante_id: string | null;
+  curso: string | null;
+  periodo: string;
+  datos_observados: unknown;
+  recomendaciones_ia: unknown;
   creado_en: string;
 }
 
@@ -88,7 +129,11 @@ export interface MetaAhorro {
 export interface EventoAleatorio {
   id: string;
   personaje_id: string;
-  tipo: "factura_inesperada" | "imprevisto_medico" | "bono_inesperado" | "oferta_sospechosa";
+  tipo:
+    | "factura_inesperada"
+    | "imprevisto_medico"
+    | "bono_inesperado"
+    | "oferta_sospechosa";
   descripcion: string;
   impacto_monto: number;
   estado: "pendiente" | "resuelto";
@@ -116,36 +161,91 @@ export interface SolicitudConsentimiento {
 // en cada tabla, y las claves Views/Functions/Enums/CompositeTypes aunque estén vacías,
 // o el tipado de los resultados de `.select()` colapsa a `never`).
 // Se irá ampliando fase a fase (modulos, retos, progreso_usuario_reto, eventos_aleatorios, logros).
+type SupabaseRow<T> = T & Record<string, unknown>;
+type SupabaseWrite<T> = Partial<T> & Record<string, unknown>;
+
 export interface Database {
   public: {
     Tables: {
       colegios: {
-        Row: Colegio;
-        Insert: Partial<Colegio>;
-        Update: Partial<Colegio>;
+        Row: SupabaseRow<Colegio>;
+        Insert: SupabaseWrite<Colegio>;
+        Update: SupabaseWrite<Colegio>;
+        Relationships: [];
+      };
+      invitaciones_educador: {
+        Row: SupabaseRow<InvitacionEducador>;
+        Insert: SupabaseWrite<InvitacionEducador>;
+        Update: SupabaseWrite<InvitacionEducador>;
+        Relationships: [];
+      };
+      informes_educativos: {
+        Row: SupabaseRow<InformeEducativo>;
+        Insert: SupabaseWrite<InformeEducativo>;
+        Update: SupabaseWrite<InformeEducativo>;
+        Relationships: [];
+      };
+      cambios_perfil: {
+        Row: SupabaseRow<CambioPerfil>;
+        Insert: SupabaseWrite<CambioPerfil>;
+        Update: SupabaseWrite<CambioPerfil>;
         Relationships: [];
       };
       perfiles: {
-        Row: Perfil;
-        Insert: Partial<Perfil>;
-        Update: Partial<Perfil>;
+        Row: SupabaseRow<Perfil>;
+        Insert: SupabaseWrite<Perfil>;
+        Update: SupabaseWrite<Perfil>;
         Relationships: [];
       };
       personajes: {
-        Row: Personaje;
-        Insert: Partial<Personaje>;
-        Update: Partial<Personaje>;
+        Row: SupabaseRow<Personaje>;
+        Insert: SupabaseWrite<Personaje>;
+        Update: SupabaseWrite<Personaje>;
         Relationships: [];
       };
       transacciones: {
-        Row: Transaccion;
-        Insert: Partial<Transaccion>;
-        Update: Partial<Transaccion>;
+        Row: SupabaseRow<Transaccion>;
+        Insert: SupabaseWrite<Transaccion>;
+        Update: SupabaseWrite<Transaccion>;
         Relationships: [];
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      actualizar_perfil: {
+        Args: {
+          p_nombre: string;
+          p_curso: string | null;
+          p_colegio_id: string | null;
+          p_avatar_id: string;
+        };
+        Returns: string[];
+      };
+      registrar_cambio_correo: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
+      obtener_estudiantes_educador: {
+        Args: Record<string, never>;
+        Returns: unknown[];
+      };
+      completar_reto_primer_empleo: {
+        Args: { p_slug: string; p_puntaje: number; p_feedback: unknown };
+        Returns: ProgresoUsuarioReto;
+      };
+      crear_meta_ahorro: {
+        Args: {
+          p_nombre: string;
+          p_monto_objetivo: number;
+          p_aporte_mensual: number;
+        };
+        Returns: MetaAhorro;
+      };
+      [key: string]: {
+        Args: Record<string, unknown>;
+        Returns: unknown;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

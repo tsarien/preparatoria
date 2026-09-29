@@ -32,12 +32,46 @@ async function registrarEstudianteDePrueba(page: Page) {
   await page.goto("/registro");
   await page.getByLabel("Nombre completo").fill("Estudiante de Prueba");
   await page.getByLabel("Fecha de nacimiento").fill("2008-01-15"); // mayor de edad, sin campo de acudiente
-  await page.getByLabel("Colegio").fill(`Colegio E2E ${Date.now()}`);
+  const colegio = await page
+    .locator("#colegio option:not([disabled])")
+    .first()
+    .getAttribute("value");
+  expect(
+    colegio,
+    "Supabase debe tener al menos un colegio habilitado",
+  ).toBeTruthy();
+  await page.getByLabel("Colegio").selectOption(colegio!);
   await page.getByLabel("Curso (ej. 11-A)").fill("11-A");
   await page.getByLabel("Correo").fill(correo);
   await page.getByLabel("Contraseña").fill("contraseña-segura-123");
   await page.getByRole("button", { name: "Crear cuenta" }).click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+
+  await expect
+    .poll(
+      async () => {
+        if (page.url().includes("/dashboard")) return "dashboard";
+        const mensaje = await page
+          .locator('[role="alert"]')
+          .first()
+          .textContent()
+          .catch(() => "");
+        if (
+          /rate limit|confirmaci[oó]n|revisa tu correo/i.test(mensaje ?? "")
+        ) {
+          return "supabase-email-gate";
+        }
+        return "pending";
+      },
+      { timeout: 15_000 },
+    )
+    .not.toBe("pending");
+
+  if (!page.url().includes("/dashboard")) {
+    test.skip(
+      true,
+      "Supabase limita el envío de confirmaciones o requiere confirmación de correo.",
+    );
+  }
 }
 
 test.describe("Flujo completo por módulo", () => {
@@ -110,5 +144,37 @@ test.describe("Flujo completo por módulo", () => {
 
     await page.getByRole("button", { name: "Ver mi meta" }).click();
     await expect(page.getByText("% completado")).toBeVisible();
+  });
+
+  test("Primer empleo: completa la hoja de vida simulada y recibe feedback", async ({
+    page,
+  }) => {
+    await page.goto("/dashboard/modulos/primer-empleo/hoja-de-vida");
+    await page
+      .getByLabel("Perfil profesional")
+      .fill("Me interesa aprender y colaborar en equipo.");
+    await page
+      .getByLabel("Habilidades")
+      .fill("Organización, comunicación y herramientas digitales.");
+    await page.getByLabel("Educación").fill("Estudios de educación media.");
+    await page
+      .getByLabel("Proyectos, voluntariados o experiencia")
+      .fill("Proyecto académico de ciencias y apoyo voluntario.");
+    await page.getByLabel("Idiomas").fill("Español, nivel nativo.");
+    await page.getByRole("button", { name: "Revisar mi respuesta" }).click();
+    await expect(page.getByText("Retroalimentación del tutor")).toBeVisible({
+      timeout: 20_000,
+    });
+  });
+
+  test("Ajustes: guarda un avatar de la colección predeterminada", async ({
+    page,
+  }) => {
+    await page.goto("/dashboard/ajustes");
+    await page.getByRole("radio", { name: "Avatar 02 Creativa" }).check();
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Cambios guardados" }),
+    ).toBeVisible();
   });
 });

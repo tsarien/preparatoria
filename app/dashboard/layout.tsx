@@ -1,4 +1,8 @@
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { GameBottomNav } from "@/components/game/game-bottom-nav";
+import { FloatingAIGuide } from "@/components/game/floating-ai-guide";
+import { NavegacionEducador } from "@/components/educador/navegacion-educador";
 
 /**
  * Layout de todo /dashboard/*. Añade la navegación inferior móvil y reserva
@@ -12,10 +16,34 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  return <DashboardConRol>{children}</DashboardConRol>;
+}
+
+async function DashboardConRol({ children }: { children: React.ReactNode }) {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) redirect("/login");
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: perfil } = await supabase
+    .from("perfiles")
+    .select("rol")
+    .eq("id", user.id)
+    .single<{ rol: string }>();
+  if (!perfil || !["estudiante", "educador"].includes(perfil.rol))
+    redirect("/login");
+
+  const esEducador = perfil.rol === "educador";
+
   return (
     <>
-      <div className="pb-24 lg:pb-0">{children}</div>
-      <GameBottomNav />
+      {esEducador ? <NavegacionEducador /> : <GameBottomNav />}
+      <div className={esEducador ? "pb-24 lg:pb-0" : "pb-44 lg:pb-0"}>
+        {children}
+      </div>
+      {!esEducador && <FloatingAIGuide />}
     </>
   );
 }

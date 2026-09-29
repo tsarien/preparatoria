@@ -1,7 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+  isSupabaseConfigured,
+} from "@/lib/supabase/server";
 import { enviarCorreoConsentimiento } from "@/lib/email";
 
 export interface RegistroState {
@@ -16,28 +19,32 @@ function calcularEdad(fechaNacimiento: string): number {
   let edad = hoy.getFullYear() - nacimiento.getFullYear();
   const noHaCumplidoAunEsteAno =
     hoy.getMonth() < nacimiento.getMonth() ||
-    (hoy.getMonth() === nacimiento.getMonth() && hoy.getDate() < nacimiento.getDate());
+    (hoy.getMonth() === nacimiento.getMonth() &&
+      hoy.getDate() < nacimiento.getDate());
   if (noHaCumplidoAunEsteAno) edad -= 1;
   return edad;
 }
 
 export async function registrarEstudiante(
   _prevState: RegistroState,
-  formData: FormData
+  formData: FormData,
 ): Promise<RegistroState> {
   if (!isSupabaseConfigured) {
-    return { error: "Falta configurar las variables de entorno de Supabase (ver README)." };
+    return {
+      error:
+        "Falta configurar las variables de entorno de Supabase (ver README).",
+    };
   }
 
   const nombre = String(formData.get("nombre") ?? "").trim();
   const fechaNacimiento = String(formData.get("fecha_nacimiento") ?? "");
-  const colegioNombre = String(formData.get("colegio") ?? "").trim();
+  const colegioId = String(formData.get("colegio_id") ?? "").trim();
   const curso = String(formData.get("curso") ?? "").trim();
   const correo = String(formData.get("correo") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const correoAcudiente = String(formData.get("correo_acudiente") ?? "").trim();
 
-  if (!nombre || !fechaNacimiento || !colegioNombre || !correo || !password) {
+  if (!nombre || !fechaNacimiento || !colegioId || !correo || !password) {
     return { error: "Completa todos los campos obligatorios." };
   }
   if (password.length < 8) {
@@ -46,7 +53,9 @@ export async function registrarEstudiante(
 
   const esMenor = calcularEdad(fechaNacimiento) < 18;
   if (esMenor && !correoAcudiente) {
-    return { error: "Como eres menor de edad, necesitamos el correo de tu acudiente." };
+    return {
+      error: "Como eres menor de edad, necesitamos el correo de tu acudiente.",
+    };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -54,26 +63,15 @@ export async function registrarEstudiante(
     return { error: "No se pudo conectar con la base de datos." };
   }
 
-  // 1. Buscar el colegio por nombre (sin distinguir mayúsculas/minúsculas); si no existe, crearlo.
-  const { data: colegioExistente } = await supabase
+  // El ID proviene del selector, pero se vuelve a comprobar en el servidor.
+  const { data: colegioExistente, error: errorColegio } = await supabase
     .from("colegios")
     .select("id")
-    .ilike("nombre", colegioNombre)
+    .eq("id", colegioId)
     .maybeSingle();
 
-  let colegioId = colegioExistente?.id as string | undefined;
-
-  if (!colegioId) {
-    const { data: colegioNuevo, error: errorColegio } = await supabase
-      .from("colegios")
-      .insert({ nombre: colegioNombre })
-      .select("id")
-      .single();
-
-    if (errorColegio || !colegioNuevo) {
-      return { error: "No se pudo registrar el colegio. Intenta de nuevo." };
-    }
-    colegioId = colegioNuevo.id as string;
+  if (errorColegio || !colegioExistente) {
+    return { error: "Selecciona un colegio válido de la lista." };
   }
 
   // 2. Crear la cuenta. El perfil y el personaje se crean solos vía trigger
@@ -85,7 +83,7 @@ export async function registrarEstudiante(
       data: {
         nombre,
         fecha_nacimiento: fechaNacimiento,
-        colegio_id: colegioId,
+        colegio_id: colegioExistente.id,
         curso,
         correo_acudiente: esMenor ? correoAcudiente : null,
       },
@@ -106,7 +104,11 @@ export async function registrarEstudiante(
       .single<{ token: string }>();
 
     if (solicitud) {
-      const resultadoCorreo = await enviarCorreoConsentimiento(correoAcudiente, nombre, solicitud.token);
+      const resultadoCorreo = await enviarCorreoConsentimiento(
+        correoAcudiente,
+        nombre,
+        solicitud.token,
+      );
       // Si no hay RESEND_API_KEY configurada, no rompemos el registro — mostramos
       // el enlace directamente para que puedas probar el flujo de todos modos.
       if (!resultadoCorreo.enviado) {

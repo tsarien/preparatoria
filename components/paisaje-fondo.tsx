@@ -24,9 +24,15 @@ export function PaisajeFondo() {
   const imagen = IMAGEN_POR_MOMENTO[momento];
 
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
-      <div className="absolute inset-0 bg-cover bg-bottom" style={{ backgroundImage: `url(${imagen})` }} />
-      <div className="absolute inset-0 bg-paper/55" />
+    <div
+      data-testid="paisaje-fondo"
+      className="fixed inset-0 -z-10 overflow-hidden"
+      aria-hidden="true"
+    >
+      <div
+        className="absolute inset-0 bg-cover bg-bottom"
+        style={{ backgroundImage: `url(${imagen})` }}
+      />
     </div>
   );
 }

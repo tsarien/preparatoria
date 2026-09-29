@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { otorgarXp } from "@/lib/wallet";
-import { aportarAMeta, calcularMesesParaMeta, type ResultadoAporte } from "@/lib/ahorro";
+import {
+  aportarAMeta,
+  calcularMesesParaMeta,
+  type ResultadoAporte,
+} from "@/lib/ahorro";
 import { getTutorFeedback } from "@/lib/ai/prompts/tutor";
 import { guardarProgreso } from "@/lib/retos";
 import type { TutorFeedback } from "@/lib/ai/schemas/tutor";
@@ -14,7 +18,10 @@ export interface CrearMetaState {
   feedback?: TutorFeedback;
 }
 
-export async function crearMeta(_prevState: CrearMetaState, formData: FormData): Promise<CrearMetaState> {
+export async function crearMeta(
+  _prevState: CrearMetaState,
+  formData: FormData,
+): Promise<CrearMetaState> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { error: "No hay conexión con Supabase." };
 
@@ -28,7 +35,9 @@ export async function crearMeta(_prevState: CrearMetaState, formData: FormData):
   const aporteMensual = Number(formData.get("aporte_mensual"));
 
   if (!nombre || !montoObjetivo || montoObjetivo <= 0) {
-    return { error: "Ponle un nombre a tu meta y un monto objetivo mayor a cero." };
+    return {
+      error: "Ponle un nombre a tu meta y un monto objetivo mayor a cero.",
+    };
   }
   if (!aporteMensual || aporteMensual <= 0) {
     return { error: "Define cuánto planeas aportar cada mes (mayor a cero)." };
@@ -55,13 +64,13 @@ export async function crearMeta(_prevState: CrearMetaState, formData: FormData):
     .maybeSingle<{ id: string }>();
   if (metaExistente) return { error: "Ya tienes una meta activa." };
 
-  const { error: errorMeta } = await supabase.from("metas_ahorro").insert({
-    personaje_id: personaje.id,
-    nombre,
-    monto_objetivo: montoObjetivo,
-    aporte_mensual_planeado: aporteMensual,
+  const { error: errorMeta } = await supabase.rpc("crear_meta_ahorro", {
+    p_nombre: nombre,
+    p_monto_objetivo: montoObjetivo,
+    p_aporte_mensual: aporteMensual,
   });
-  if (errorMeta) return { error: "No se pudo crear la meta. Intenta de nuevo." };
+  if (errorMeta)
+    return { error: "No se pudo crear la meta. Intenta de nuevo." };
 
   const meses = calcularMesesParaMeta(montoObjetivo, 0, aporteMensual);
 
@@ -75,7 +84,11 @@ export async function crearMeta(_prevState: CrearMetaState, formData: FormData):
     return { error: resultadoTutor.error };
   }
 
-  await otorgarXp(supabase, personaje.id, Math.max(resultadoTutor.feedback.puntaje, 10));
+  await otorgarXp(
+    supabase,
+    personaje.id,
+    Math.max(resultadoTutor.feedback.puntaje, 10),
+  );
 
   await guardarProgreso(supabase, {
     usuarioId: user.id,
@@ -90,9 +103,13 @@ export async function crearMeta(_prevState: CrearMetaState, formData: FormData):
 }
 
 /** Aporte puntual a la meta ya creada — no genera una nueva evaluación de IA, solo mueve la plata. */
-export async function hacerAporte(metaId: string, monto: number): Promise<ResultadoAporte> {
+export async function hacerAporte(
+  metaId: string,
+  monto: number,
+): Promise<ResultadoAporte> {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { success: false, error: "No hay conexión con Supabase." };
+  if (!supabase)
+    return { success: false, error: "No hay conexión con Supabase." };
   return aportarAMeta(supabase, metaId, monto);
 }
 

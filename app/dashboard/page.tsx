@@ -17,6 +17,20 @@ const MODULOS_MVP = [
     disponible: true,
   },
   {
+    slug: "ahorro-metas",
+    grupo: "Dinero",
+    nombre: "Ahorro con metas",
+    icono: "/iconos/icono-ahorro.png",
+    disponible: true,
+  },
+  {
+    slug: "primer-empleo",
+    grupo: "Vida profesional",
+    nombre: "Primer empleo",
+    icono: "/iconos/icono-empleo.png",
+    disponible: true,
+  },
+  {
     slug: "detectar-estafas",
     grupo: "Seguridad digital",
     nombre: "Detectar estafas",
@@ -28,13 +42,6 @@ const MODULOS_MVP = [
     grupo: "Vida independiente",
     nombre: "Contrato de arriendo",
     icono: "/iconos/icono-contrato.png",
-    disponible: true,
-  },
-  {
-    slug: "ahorro-metas",
-    grupo: "Dinero",
-    nombre: "Ahorro con metas",
-    icono: "/iconos/icono-ahorro.png",
     disponible: true,
   },
 ];
@@ -50,9 +57,12 @@ export default async function DashboardPage() {
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("nombre, consentimiento_acudiente")
+    .select("nombre, consentimiento_acudiente, rol")
     .eq("id", user.id)
-    .single<Pick<Perfil, "nombre" | "consentimiento_acudiente">>();
+    .single<Pick<Perfil, "nombre" | "consentimiento_acudiente" | "rol">>();
+
+  if (perfil?.rol === "educador") redirect("/dashboard/educador");
+  if (perfil?.rol !== "estudiante") redirect("/login");
 
   const { data: personaje } = await supabase
     .from("personajes")

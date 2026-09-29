@@ -11,6 +11,7 @@ import type { Modulo } from "@/types/database";
 
 const ICONO_MODULO: Record<string, string> = {
   "presupuesto-personal": "/iconos/icono-presupuesto.png",
+  "primer-empleo": "/iconos/icono-empleo.png",
   "detectar-estafas": "/iconos/icono-seguridad.png",
   "contrato-arriendo": "/iconos/icono-contrato.png",
   "ahorro-metas": "/iconos/icono-ahorro.png",

@@ -257,7 +257,7 @@ npm run dev          # en otra terminal, o deja que Playwright la levante solo
 npm run test:e2e
 ```
 
-### Con esto, el plan de las 9 fases (0 a 8) queda completo
+### Con esto, el plan original de las 9 fases (0 a 8) queda completo
 
 Repo, base de datos con RLS en todas las tablas, autenticación con consentimiento real de acudientes, motor de billetera + gamificación, los 4 módulos del MVP, 2 personajes de IA, eventos aleatorios diarios, ranking, política de privacidad, y 96 pruebas (79 unitarias + 17 E2E escritas). Ver `MANUAL_USUARIO.md` para una guía corta pensada para la sustentación, no para desarrolladores.
 
@@ -345,7 +345,7 @@ Mismo proceso técnico que la primera ronda: recorte por densidad de contenido (
 
   11 pruebas unitarias sobre los límites exactos (incluyendo el envolvimiento de la noche alrededor de la medianoche).
 
-- `components/paisaje-fondo.tsx`: elige la imagen (`public/paisaje/*.jpg`) según la hora — **nunca** según el tema. El modo claro/oscuro solo tiñe un velo semitransparente encima (`bg-paper/55`, el mismo token de siempre) para que la tarjeta de arriba tenga contraste sin importar qué tan clara sea la imagen de fondo (mediodía) o qué tan oscura (noche). Por diseño, el paisaje y el modo de lectura son independientes — puedes tener modo claro en la interfaz de noche en Colombia, y se ve bien igual.
+- `components/paisaje-fondo.tsx`: elige la imagen (`public/paisaje/*.jpg`) según la hora — **nunca** según el tema. El paisaje no recibe una capa de tema a pantalla completa; cada tarjeta controla su propia superficie y contraste. Por diseño, el paisaje y el modo de lectura son independientes — puedes tener modo claro en la interfaz de noche en Colombia, y se ve bien igual.
 - **Aviso de calidad honesto**: las imágenes de amanecer/mañana/mediodía/atardecer salieron de un grid de 5 paneles (~390px de ancho cada uno) — se ven bien a los tamaños que se usan aquí, pero si alguna vez las ves algo suaves al agrandar la ventana mucho, es por eso. La de noche es una versión ancha dedicada (1983px), notablemente más nítida. Si quieres parejo el set completo, un siguiente paso sería pedir 4 versiones anchas equivalentes.
 - **Botón de tema nuevo** (`components/theme-toggle-button.tsx`): sol/luna (íconos de `lucide-react`), arriba a la derecha, flotando sobre el paisaje con fondo translúcido. Alterna directo entre claro/oscuro (no pasa por "sistema") — la selección de 3 opciones completa sigue viviendo en Ajustes. Ambos leen y escriben la misma preferencia, así que se mantienen sincronizados.
 - **Portada, login y registro** rediseñados sobre el paisaje: tarjetas con fondo translúcido (`bg-paper-raised/92 backdrop-blur-xl`) para que se sientan integradas a la escena en vez de flotar encima sin relación. Los campos del formulario de registro y login ahora tienen ícono (nombre, fecha, colegio, curso, correo, contraseña) — se agregó `lucide-react` para esto, y un componente compartido `components/ui/campo-con-icono.tsx` para no duplicar el mismo campo con ícono en los dos formularios.
@@ -378,3 +378,52 @@ Gemini permanece como opción predeterminada. Para usarlo, deja `AI_PROVIDER=gem
 **DeepSeek es gratis por tiempo limitado, no permanentemente**: el crédito de bienvenida se concede una sola vez al registrarse y vence a los 30 días; después el uso es de pago. Para probarlo, crea una clave en [DeepSeek Platform](https://platform.deepseek.com/api_keys), configura `AI_PROVIDER=deepseek` y `DEEPSEEK_API_KEY`. Según la [documentación oficial de modelos y precios](https://api-docs.deepseek.com/quick_start/pricing) consultada el 27 de septiembre de 2026, el modelo vigente es `deepseek-flash` (DeepSeek V4.1 Flash); ese modelo se usa para tutor y personajes. DeepSeek no documenta JSON Schema en `response_format`: el tutor usa JSON mode con el schema incluido en el prompt y la aplicación valida la respuesta en servidor.
 
 Para alternar entre proveedores basta cambiar `AI_PROVIDER`; no se elimina la configuración de los demás. Los IDs, cuotas y precios pueden cambiar, así que vuelve a consultar las fuentes oficiales antes de una sustentación o despliegue.
+
+## Extensión: Primer empleo, educadores y privacidad de cuenta
+
+Las migraciones `0011` a `0017` agregan el módulo Primer empleo y su posición definitiva, el registro educativo por invitación, las consultas y reportes del panel docente, avatar/auditoría de perfil, los privilegios SQL explícitos para PostgREST y la reparación del trigger de perfiles. Ejecútalas en orden después de `0010_ia_guia.sql` en Supabase SQL Editor.
+
+El alta pública de educadores **no** asigna roles desde campos del navegador. Una persona administradora debe emitir un código de invitación ligado a colegio y correo institucional, almacenando solo su hash SHA-256. Para generarlo de forma segura en una terminal Node local:
+
+```js
+const crypto = require("node:crypto");
+const codigo = crypto.randomBytes(32).toString("base64url").toLowerCase();
+console.log({
+  codigo,
+  sha256: crypto.createHash("sha256").update(codigo).digest("hex"),
+});
+```
+
+Con el UUID del colegio y el correo institucional, crea la invitación desde SQL Editor:
+
+```sql
+select public.crear_invitacion_educador(
+   'UUID-DEL-COLEGIO',
+   'docente@institucion.edu.co',
+   'HASH_SHA256_DE_64_CARACTERES'
+);
+```
+
+Entrega el código en un canal privado a esa persona. Es de un solo uso y vence en siete días. El alta requiere `SUPABASE_SERVICE_ROLE_KEY` en el entorno del servidor para crear la cuenta con `app_metadata`; nunca uses el prefijo `NEXT_PUBLIC_`, la incluyas en código cliente ni la confirmes en el repositorio. El registro de estudiantes sigue usando la clave anon y ahora acepta únicamente `colegio_id` existentes.
+
+El RPC `obtener_estudiantes_educador()` verifica el rol y el colegio en PostgreSQL y devuelve campos educativos minimizados; RLS no expone perfiles de estudiantes a consultas directas del educador. Los informes guardan métricas observadas separadas de las recomendaciones de IA. La IA recibe agregados de progreso, no nombres, correos ni datos de acudientes. Los cambios de perfil usan `actualizar_perfil()` para validar y auditar en la misma transacción; email se cambia mediante Supabase Auth. Los avatares son ocho IDs allowlisted sin carga de archivos.
+
+La función `crear_invitacion_educador()` solo puede ejecutarla `postgres` o `service_role`. Los reportes, RPCs educativos, registro de roles y funciones de escritura financiera solo quedarán disponibles tras instalar todas las migraciones. En un proyecto Supabase real verifica las políticas con dos colegios distintos y cuentas de prueba; no se aplicaron migraciones remotas desde este entorno.
+
+### Cuentas de prueba locales
+
+Después de aplicar las migraciones, define en `.env.local` dos correos y contraseñas exclusivos para pruebas: `SUPABASE_TEST_STUDENT_EMAIL`, `SUPABASE_TEST_STUDENT_PASSWORD`, `SUPABASE_TEST_EDUCATOR_EMAIL` y `SUPABASE_TEST_EDUCATOR_PASSWORD`. No uses cuentas reales ni reutilices contraseñas personales. El seed selecciona un colegio ya existente y crea el estudiante y el educador mediante Auth Admin; el rol educativo se asigna solo desde servidor. Las cuentas existentes no se modifican.
+
+Comprueba primero que las tablas están disponibles, sin escribir datos:
+
+```bash
+node scripts/seed-test-users.mjs --check
+```
+
+Para permitir la creación local, agrega `SUPABASE_TEST_SEED_ENABLED=true` a `.env.local` y ejecuta:
+
+```bash
+node scripts/seed-test-users.mjs
+```
+
+El script falla antes de crear cuentas si faltan las migraciones, colegios o credenciales de prueba, se niega a correr en producción y nunca imprime contraseñas. El educador de seed es una cuenta interna de prueba creada con la service-role key; no reemplaza ni debilita el flujo público de invitaciones.

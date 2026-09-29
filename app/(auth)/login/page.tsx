@@ -69,6 +69,15 @@ export default function LoginPage() {
               Regístrate
             </Link>
           </p>
+          <p className="mt-2 text-sm text-ink-soft">
+            ¿Eres profesor o personal educativo?{" "}
+            <Link
+              href="/registro/educador"
+              className="font-medium text-ink underline underline-offset-2"
+            >
+              Regístrate como educador
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </div>
