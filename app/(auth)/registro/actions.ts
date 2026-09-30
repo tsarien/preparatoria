@@ -5,6 +5,7 @@ import {
   createSupabaseServerClient,
   isSupabaseConfigured,
 } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { enviarCorreoConsentimiento } from "@/lib/email";
 
 export interface RegistroState {
@@ -97,7 +98,12 @@ export async function registrarEstudiante(
   let enlaceConsentimiento: string | undefined;
 
   if (esMenor && signUpData.user) {
-    const { data: solicitud } = await supabase
+    // Con "Confirm email" activado en Supabase, signUp no devuelve sesión: el cliente
+    // sigue siendo anónimo y RLS le oculta la solicitud (el acudiente nunca recibiría
+    // el enlace). Por eso el token se lee en servidor con la service-role key; si no
+    // está configurada, se usa el cliente normal (funciona cuando sí hay sesión).
+    const lector = createSupabaseAdminClient() ?? supabase;
+    const { data: solicitud } = await lector
       .from("solicitudes_consentimiento")
       .select("token")
       .eq("perfil_id", signUpData.user.id)

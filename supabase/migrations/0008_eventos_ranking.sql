@@ -170,14 +170,21 @@ grant execute on function public.obtener_ranking_colegio() to authenticated;
 
 -- ─────────────────────────────────────────────
 -- Cron: genera eventos todos los días a las 8:00am hora Colombia (13:00 UTC).
--- REQUIERE activar antes la extensión pg_cron: Dashboard > Database > Extensions
--- > buscar "pg_cron" > Enable. Si corres este archivo completo ANTES de activar
--- la extensión, todo lo de arriba queda creado igual — solo este último bloque
--- va a fallar; actívala y corre nada más este bloque de nuevo.
+-- Intenta activar pg_cron y programar la tarea. Si la extensión no está disponible
+-- en tu proyecto, NO aborta la migración (antes un error aquí revertía TODO el
+-- archivo, y con él eventos_aleatorios, resolver_evento y el ranking): solo avisa.
+-- Si sale el aviso, activa Database > Extensions > pg_cron y corre este bloque solo.
 -- ─────────────────────────────────────────────
 
-select cron.schedule(
-  'generar-eventos-diarios',
-  '0 13 * * *',
-  $$ select public.generar_eventos_diarios(); $$
-);
+do $$
+begin
+  create extension if not exists pg_cron;
+  perform cron.schedule(
+    'generar-eventos-diarios',
+    '0 13 * * *',
+    'select public.generar_eventos_diarios();'
+  );
+exception when others then
+  raise notice 'pg_cron no quedó programado (%). Los eventos se pueden generar a mano con: select public.generar_eventos_diarios();', sqlerrm;
+end;
+$$;

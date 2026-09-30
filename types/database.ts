@@ -40,6 +40,15 @@ export interface CambioPerfil {
   creado_en: string;
 }
 
+export interface SolicitudConsentimiento {
+  id: string;
+  perfil_id: string;
+  token: string;
+  estado: "pendiente" | "aprobado" | "rechazado";
+  creado_en: string;
+  resuelto_en: string | null;
+}
+
 export interface InvitacionEducador {
   id: string;
   colegio_id: string;
@@ -47,6 +56,7 @@ export interface InvitacionEducador {
   codigo_hash: string;
   expira_en: string;
   usada_en: string | null;
+  usuario_id: string | null;
   creada_en: string;
 }
 
@@ -177,6 +187,12 @@ export interface Database {
         Row: SupabaseRow<InvitacionEducador>;
         Insert: SupabaseWrite<InvitacionEducador>;
         Update: SupabaseWrite<InvitacionEducador>;
+        Relationships: [];
+      };
+      solicitudes_consentimiento: {
+        Row: SupabaseRow<SolicitudConsentimiento>;
+        Insert: SupabaseWrite<SolicitudConsentimiento>;
+        Update: SupabaseWrite<SolicitudConsentimiento>;
         Relationships: [];
       };
       informes_educativos: {

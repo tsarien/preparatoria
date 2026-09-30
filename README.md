@@ -196,7 +196,7 @@ Esta fase tenía tres piezas grandes — el propio plan sugería poder dividirla
 ### Pasos adicionales para esta fase
 
 1. Corre `supabase/migrations/0008_eventos_ranking.sql`.
-2. **Antes** de correr el archivo completo, activa la extensión `pg_cron`: Dashboard de Supabase → Database → Extensions → busca "pg_cron" → Enable. Si ya corriste el archivo sin activarla, todo quedó creado igual excepto el `cron.schedule(...)` del final — actívala y vuelve a correr solo ese último bloque.
+2. `pg_cron`: la migración intenta activar la extensión y programar la tarea sola. Si tu proyecto no la tiene disponible, **no falla**: muestra un aviso (`NOTICE`) y todo lo demás queda creado. En ese caso activa `pg_cron` en Dashboard → Database → Extensions y vuelve a correr solo el bloque `do $$ ... $$` del final de `0008`. (Versiones anteriores de esta migración abortaban por completo si `pg_cron` no estaba activo, y con ella se revertían `eventos_aleatorios`, `resolver_evento` y el ranking.)
 3. `npm test` — deberían pasar 79 pruebas (6 nuevas de `lib/eventos.ts`).
 4. Para probar sin esperar un día: en el SQL Editor, corre `select public.generar_eventos_diarios();` y luego entra a tu dashboard — deberías ver el aviso de eventos pendientes.
 5. Registra un segundo usuario con el mismo colegio para ver el ranking con más de una fila.
@@ -381,7 +381,19 @@ Para alternar entre proveedores basta cambiar `AI_PROVIDER`; no se elimina la co
 
 ## Extensión: Primer empleo, educadores y privacidad de cuenta
 
-Las migraciones `0011` a `0017` agregan el módulo Primer empleo y su posición definitiva, el registro educativo por invitación, las consultas y reportes del panel docente, avatar/auditoría de perfil, los privilegios SQL explícitos para PostgREST y la reparación del trigger de perfiles. Ejecútalas en orden después de `0010_ia_guia.sql` en Supabase SQL Editor.
+Las migraciones `0011` a `0017` agregan el módulo Primer empleo y su posición definitiva, el registro educativo por invitación, las consultas y reportes del panel docente, avatar/auditoría de perfil, los privilegios SQL explícitos para PostgREST y el trigger definitivo de alta de usuarios (`0017_auth_trigger_roles.sql`, la única definición de `handle_new_user()`). Ejecútalas en orden después de `0010_ia_guia.sql` en Supabase SQL Editor.
+
+### Instalación limpia de la base de datos
+
+Para partir de cero (por ejemplo, tras conflictos entre migraciones):
+
+1. En SQL Editor corre `supabase/reset_public.sql` (borra y recrea el esquema `public` con sus permisos).
+2. Corre `supabase/setup_completo.sql` completo. Es la concatenación de todas las migraciones (`node scripts/build-setup-sql.mjs` lo regenera; no lo edites a mano). Es seguro ejecutarlo de una vez: si algo falla, se revierte todo el archivo y el error indica la línea.
+3. Ejecuta el seed de cuentas de prueba (sección siguiente).
+
+`DROP SCHEMA` no elimina `auth.users`: las cuentas creadas antes del reinicio quedan sin perfil. Bórralas desde Authentication → Users si no las necesitas; el seed ya recrea por sí solo las cuentas de prueba huérfanas.
+
+**Cómo se asigna el rol** (`0017`): nunca desde campos que el navegador pueda editar. El registro de educadores consume una invitación (`usada_en`) y luego crea la cuenta con la service-role key; el trigger encuentra esa invitación por correo, la vincula al usuario y asigna `educador`. Como respaldo acepta `app_metadata.rol = 'educador'`, que solo escribe la service-role key. Cualquier otro alta —incluido un `rol` enviado en `user_metadata` desde el navegador— queda como `estudiante`.
 
 El alta pública de educadores **no** asigna roles desde campos del navegador. Una persona administradora debe emitir un código de invitación ligado a colegio y correo institucional, almacenando solo su hash SHA-256. Para generarlo de forma segura en una terminal Node local:
 
@@ -412,7 +424,7 @@ La función `crear_invitacion_educador()` solo puede ejecutarla `postgres` o `se
 
 ### Cuentas de prueba locales
 
-Después de aplicar las migraciones, define en `.env.local` dos correos y contraseñas exclusivos para pruebas: `SUPABASE_TEST_STUDENT_EMAIL`, `SUPABASE_TEST_STUDENT_PASSWORD`, `SUPABASE_TEST_EDUCATOR_EMAIL` y `SUPABASE_TEST_EDUCATOR_PASSWORD`. No uses cuentas reales ni reutilices contraseñas personales. El seed selecciona un colegio ya existente y crea el estudiante y el educador mediante Auth Admin; el rol educativo se asigna solo desde servidor. Las cuentas existentes no se modifican.
+Después de aplicar las migraciones, define en `.env.local` dos correos y contraseñas exclusivos para pruebas: `SUPABASE_TEST_STUDENT_EMAIL`, `SUPABASE_TEST_STUDENT_PASSWORD`, `SUPABASE_TEST_EDUCATOR_EMAIL` y `SUPABASE_TEST_EDUCATOR_PASSWORD`. No uses cuentas reales ni reutilices contraseñas personales. El seed usa el colegio demo `DEMO-001` (sembrado por `0001`), crea el estudiante con el mismo formato del registro público y el educador con el mismo flujo del registro real (invitación de un solo uso + Auth Admin). Las cuentas existentes y válidas no se modifican; las huérfanas (sin perfil) se recrean.
 
 Comprueba primero que las tablas están disponibles, sin escribir datos:
 
@@ -426,4 +438,4 @@ Para permitir la creación local, agrega `SUPABASE_TEST_SEED_ENABLED=true` a `.e
 node scripts/seed-test-users.mjs
 ```
 
-El script falla antes de crear cuentas si faltan las migraciones, colegios o credenciales de prueba, se niega a correr en producción y nunca imprime contraseñas. El educador de seed es una cuenta interna de prueba creada con la service-role key; no reemplaza ni debilita el flujo público de invitaciones.
+El script falla antes de crear cuentas si faltan las migraciones, colegios o credenciales de prueba, se niega a correr en producción y nunca imprime contraseñas. El educador de seed usa el mismo mecanismo de invitación que el registro real, por lo que también sirve como prueba del trigger `0017`; no lo reemplaza ni lo debilita.

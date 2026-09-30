@@ -158,16 +158,26 @@ preparatoria/
 │   ├── wallet.test.ts
 │   └── wallet.ts
 ├── supabase/
-│   └── migrations/
-│       ├── 0001_core_schema.sql
-│       ├── 0002_auth_perfil_trigger.sql
-│       ├── 0003_wallet_functions.sql
-│       ├── 0004_modulos_retos.sql
-│       ├── 0005_modulo_estafas.sql
-│       ├── 0006_modulo_contrato.sql
-│       ├── 0007_modulo_ahorro.sql
-│       ├── 0008_eventos_ranking.sql
-│       └── 0009_consentimiento_y_rls.sql
+│   ├── migrations/
+│   │   ├── 0001_core_schema.sql
+│   │   ├── 0002_auth_perfil_trigger.sql
+│   │   ├── 0003_wallet_functions.sql
+│   │   ├── 0004_modulos_retos.sql
+│   │   ├── 0005_modulo_estafas.sql
+│   │   ├── 0006_modulo_contrato.sql
+│   │   ├── 0007_modulo_ahorro.sql
+│   │   ├── 0008_eventos_ranking.sql
+│   │   ├── 0009_consentimiento_y_rls.sql
+│   │   ├── 0010_ia_guia.sql
+│   │   ├── 0011_primer_empleo.sql
+│   │   ├── 0012_roles_educadores.sql
+│   │   ├── 0013_rls_finanzas_seguras.sql
+│   │   ├── 0014_panel_educadores.sql
+│   │   ├── 0015_perfil_avatar_auditoria.sql
+│   │   ├── 0016_api_privileges.sql
+│   │   └── 0017_auth_trigger_roles.sql
+│   ├── reset_public.sql
+│   └── setup_completo.sql
 ├── types/
 │   └── database.ts
 ├── .env.example
@@ -190,6 +200,6 @@ preparatoria/
 
 - **110 archivos** de código/configuración/documentación (sin contar `node_modules`).
 - **21 rutas** (`page.tsx`).
-- **9 migraciones** SQL, en orden de aplicación.
+- **17 migraciones** SQL, en orden de aplicación (más `setup_completo.sql`, su concatenación, y `reset_public.sql`).
 - **8 archivos de prueba** unitarios (84 pruebas con Vitest) + 3 archivos de pruebas E2E (44 pruebas con Playwright, entre desktop y mobile).
 - **3 "personajes"/usos de IA**: `tutor.ts` (evaluación estructurada), `estafador.ts` y `arrendador.ts` (simulación conversacional).
