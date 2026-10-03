@@ -7,6 +7,17 @@ export interface Colegio {
   nombre: string;
   ciudad: string | null;
   codigo_institucional: string | null;
+  activo: boolean;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface CursoColegio {
+  id: string;
+  colegio_id: string;
+  nombre: string;
+  activo: boolean;
+  creado_en: string;
 }
 
 export type RolPerfil = "estudiante" | "educador" | "administrador";
@@ -24,6 +35,7 @@ export interface Perfil {
   area_educativa: string | null;
   cursos_educativos: string[];
   avatar_id: string;
+  activo: boolean;
   creado_en: string;
 }
 
@@ -58,6 +70,8 @@ export interface InvitacionEducador {
   usada_en: string | null;
   usuario_id: string | null;
   creada_en: string;
+  revocada_en: string | null;
+  creada_por: string | null;
 }
 
 export interface InformeEducativo {
@@ -79,6 +93,7 @@ export interface Personaje {
   salario_mensual: number;
   nivel: number;
   xp: number;
+  modo_juego: "estudiante" | "educador_demo";
   creado_en: string;
 }
 
@@ -156,6 +171,71 @@ export interface RankingFila {
   curso: string | null;
   nivel: number;
   xp: number;
+  avatar_id: string | null;
+  es_usuario_actual: boolean;
+}
+
+export type EstadoTicket = "abierto" | "en_proceso" | "respondido" | "cerrado";
+export type PrioridadTicket = "baja" | "media" | "alta" | "urgente";
+export type CategoriaTicket =
+  | "cuenta"
+  | "error_tecnico"
+  | "ia"
+  | "contenido"
+  | "sugerencia"
+  | "otro";
+
+export interface TicketSoporte {
+  id: string;
+  usuario_id: string;
+  asunto: string;
+  categoria: CategoriaTicket;
+  descripcion: string;
+  pagina: string | null;
+  estado: EstadoTicket;
+  prioridad: PrioridadTicket;
+  creado_en: string;
+  actualizado_en: string;
+  cerrado_en: string | null;
+  administrador_asignado_id: string | null;
+}
+
+export interface TicketMensaje {
+  id: string;
+  ticket_id: string;
+  autor_id: string;
+  autor_rol: RolPerfil;
+  mensaje: string;
+  creado_en: string;
+}
+
+export interface ActividadSistema {
+  id: string;
+  actor_id: string | null;
+  accion: string;
+  entidad: string;
+  entidad_id: string | null;
+  detalle: string | null;
+  creado_en: string;
+}
+
+export interface ConversacionIA {
+  id: string;
+  perfil_id: string;
+  tipo: "guia" | "educativa";
+  titulo: string;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface MensajeIAEducativa {
+  id: string;
+  educador_id: string;
+  conversacion_id: string;
+  autor: "educador" | "ia";
+  texto: string;
+  contexto: unknown;
+  creado_en: string;
 }
 
 export interface SolicitudConsentimiento {
@@ -181,6 +261,42 @@ export interface Database {
         Row: SupabaseRow<Colegio>;
         Insert: SupabaseWrite<Colegio>;
         Update: SupabaseWrite<Colegio>;
+        Relationships: [];
+      };
+      cursos_colegio: {
+        Row: SupabaseRow<CursoColegio>;
+        Insert: SupabaseWrite<CursoColegio>;
+        Update: SupabaseWrite<CursoColegio>;
+        Relationships: [];
+      };
+      tickets_soporte: {
+        Row: SupabaseRow<TicketSoporte>;
+        Insert: SupabaseWrite<TicketSoporte>;
+        Update: SupabaseWrite<TicketSoporte>;
+        Relationships: [];
+      };
+      tickets_mensajes: {
+        Row: SupabaseRow<TicketMensaje>;
+        Insert: SupabaseWrite<TicketMensaje>;
+        Update: SupabaseWrite<TicketMensaje>;
+        Relationships: [];
+      };
+      actividad_sistema: {
+        Row: SupabaseRow<ActividadSistema>;
+        Insert: SupabaseWrite<ActividadSistema>;
+        Update: SupabaseWrite<ActividadSistema>;
+        Relationships: [];
+      };
+      conversaciones_ia: {
+        Row: SupabaseRow<ConversacionIA>;
+        Insert: SupabaseWrite<ConversacionIA>;
+        Update: SupabaseWrite<ConversacionIA>;
+        Relationships: [];
+      };
+      mensajes_ia_educativa: {
+        Row: SupabaseRow<MensajeIAEducativa>;
+        Insert: SupabaseWrite<MensajeIAEducativa>;
+        Update: SupabaseWrite<MensajeIAEducativa>;
         Relationships: [];
       };
       invitaciones_educador: {

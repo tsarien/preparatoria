@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { momentoActualColombia } from "@/lib/paisaje";
 
 const IMAGEN_POR_MOMENTO: Record<string, string> = {
@@ -14,18 +15,23 @@ const IMAGEN_POR_MOMENTO: Record<string, string> = {
  * la interfaz, que es una preferencia de lectura aparte (lib/theme.ts). Por
  * eso este componente no recibe ni usa el tema para nada, solo la hora.
  *
- * El velo de encima (`bg-paper/NN`) sí usa el token de tema — tiñe el paisaje
- * hacia blanco o hacia oscuro según el modo de lectura activo, para que la
- * tarjeta de encima siempre tenga contraste suficiente sin importar qué tan
- * clara sea la imagen de fondo (ej. mediodía) ni qué tan oscura (ej. noche).
+ * `await connection()` hace que CUALQUIER página que use este componente se
+ * renderice en cada petición. Sin esto, una página sin otras APIs dinámicas
+ * (p. ej. /login) se prerenderiza en el build y el fondo queda congelado a la
+ * hora en que se compiló, en vez de seguir la hora de Colombia.
+ *
+ * Es la ÚNICA fuente del fondo: Home, /login, /registro y /registro/educador
+ * lo reutilizan (vía app/(auth)/layout.tsx y app/page.tsx).
  */
-export function PaisajeFondo() {
+export async function PaisajeFondo() {
+  await connection();
   const momento = momentoActualColombia();
   const imagen = IMAGEN_POR_MOMENTO[momento];
 
   return (
     <div
       data-testid="paisaje-fondo"
+      data-momento={momento}
       className="fixed inset-0 -z-10 overflow-hidden"
       aria-hidden="true"
     >

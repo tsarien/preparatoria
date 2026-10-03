@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState, useTransition } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { resolverEventoAction } from "./actions";
-import { esEventoPositivo, puedeIgnorarse } from "@/lib/eventos";
+import { esEventoPositivo } from "@/lib/eventos";
 import type { EventoAleatorio } from "@/types/database";
 import { EventCard, consecuencia } from "@/components/game/event-card";
 import { cn } from "@/lib/utils";

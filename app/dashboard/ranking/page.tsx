@@ -19,9 +19,12 @@ export default async function RankingPage() {
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("nombre")
+    .select("nombre, rol, avatar_id")
     .eq("id", user.id)
-    .single<{ nombre: string }>();
+    .single<{ nombre: string; rol: string; avatar_id: string }>();
+
+  // El ranking es solo de estudiantes: educadores y administradores nunca participan en él.
+  if (perfil?.rol !== "estudiante") redirect("/dashboard");
 
   // Datos del usuario actual — necesarios para que el header no mienta
   // cuando está fuera del top 50 y no aparece en `ranking`.
@@ -34,9 +37,9 @@ export default async function RankingPage() {
   const { data: rankingData } = await supabase.rpc("obtener_ranking_colegio");
   const ranking = (rankingData as RankingFila[] | null) ?? [];
 
-  // Identificación del usuario actual por nombre (la RPC no expone usuario_id).
-  // Si hay nombres duplicados, se marca el primero.
-  const miIndice = ranking.findIndex((f) => f.nombre === perfil?.nombre);
+  // La RPC marca la fila del usuario actual (es_usuario_actual), sin exponer ids ajenos y sin
+  // depender de que el nombre sea único.
+  const miIndice = ranking.findIndex((f) => f.es_usuario_actual);
   const miPosicion = miIndice >= 0 ? miIndice + 1 : null;
   const enTop50 = miIndice >= 0;
 
@@ -74,6 +77,7 @@ export default async function RankingPage() {
       <MyRankCard
         posicion={miPosicion}
         nombre={perfil?.nombre ?? "Estudiante"}
+        avatarId={perfil?.avatar_id}
         nivel={personaje?.nivel ?? 1}
         xp={personaje?.xp ?? 0}
         enTop50={enTop50}
@@ -115,6 +119,7 @@ export default async function RankingPage() {
                 key={`${fila.nombre}-${i}`}
                 posicion={i + 1}
                 nombre={fila.nombre}
+                avatarId={fila.avatar_id}
                 curso={fila.curso}
                 nivel={fila.nivel}
                 xp={fila.xp}

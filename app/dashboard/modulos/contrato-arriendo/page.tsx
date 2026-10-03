@@ -1,3 +1,4 @@
+import { etiquetaMision } from "@/lib/modulos";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ICONO_MODULO } from "@/components/encabezado-pagina";
@@ -57,7 +58,7 @@ export default async function ModuloContratoPage() {
         volverHref="/dashboard"
         volverEtiqueta="Volver al mapa"
         categoria="Vida independiente"
-        mision="Misión 03"
+        mision={etiquetaMision("contrato-arriendo")}
         titulo={modulo?.nombre ?? "Contrato de arriendo"}
         tagline={
           modulo?.descripcion ??

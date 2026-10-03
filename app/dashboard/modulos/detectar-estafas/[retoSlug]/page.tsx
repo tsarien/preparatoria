@@ -1,3 +1,4 @@
+import { etiquetaMision } from "@/lib/modulos";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRetoPorSlug, getProgreso } from "@/lib/retos";
@@ -40,7 +41,7 @@ export default async function EscenarioEstafaPage({
       volverHref="/dashboard/modulos/detectar-estafas"
       volverEtiqueta="Detectar estafas"
       categoria="Seguridad digital"
-      mision={`Escenario · ${config.canal.toUpperCase()}`}
+      mision={`${etiquetaMision("detectar-estafas")} · Escenario · ${config.canal.toUpperCase()}`}
       dificultad={reto.dificultad}
       titulo={reto.nombre}
       tagline="Algunos son estafas, otros no. Marca lo que veas y decide con criterio."

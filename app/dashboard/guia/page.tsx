@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { GameModuleShell } from "@/components/game/game-module-shell";
 import { GameBackButton } from "@/components/game/game-back-button";
 import { ChatGuia } from "./chat-guia";
-import { getHistorial, contarMensajesHoy } from "./actions";
+import { cargarEstadoGuia, contarMensajesHoy } from "./actions";
 
 export default async function GuiaPage() {
   const supabase = await createSupabaseServerClient();
@@ -15,8 +15,8 @@ export default async function GuiaPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [historial, mensajesHoy] = await Promise.all([
-    getHistorial(),
+  const [estado, mensajesHoy] = await Promise.all([
+    cargarEstadoGuia(),
     contarMensajesHoy(),
   ]);
 
@@ -46,7 +46,7 @@ export default async function GuiaPage() {
         </div>
       </header>
 
-      <ChatGuia historialInicial={historial} mensajesHoy={mensajesHoy} />
+      <ChatGuia estado={estado} mensajesHoy={mensajesHoy} />
     </GameModuleShell>
   );
 }

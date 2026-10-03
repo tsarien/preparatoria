@@ -2,14 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  User,
-  Calendar,
-  School,
-  GraduationCap,
-  Mail,
-  Lock,
-} from "lucide-react";
+import { User, Calendar, Mail } from "lucide-react";
 import { registrarEstudiante, type RegistroState } from "./actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,22 +13,12 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { CampoConIcono } from "@/components/ui/campo-con-icono";
+import { ColegioCursoCampos } from "@/components/auth/colegio-curso-campos";
+import { CamposContrasena } from "@/components/auth/campos-contrasena";
+import { esMenorDeEdad } from "@/lib/registro";
 
 const ESTADO_INICIAL: RegistroState = {};
 const TARJETA = "bg-paper-raised/92 shadow-2xl backdrop-blur-xl";
-
-function esMenorDeEdad(fechaNacimiento: string): boolean {
-  if (!fechaNacimiento) return false;
-  const hoy = new Date();
-  const nacimiento = new Date(fechaNacimiento);
-  let edad = hoy.getFullYear() - nacimiento.getFullYear();
-  const noHaCumplidoAunEsteAno =
-    hoy.getMonth() < nacimiento.getMonth() ||
-    (hoy.getMonth() === nacimiento.getMonth() &&
-      hoy.getDate() < nacimiento.getDate());
-  if (noHaCumplidoAunEsteAno) edad -= 1;
-  return edad < 18;
-}
 
 export function RegistroForm({
   colegios,
@@ -121,42 +104,11 @@ export function RegistroForm({
             onChange={(e) => setFechaNacimiento(e.target.value)}
           />
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="colegio" className="text-sm font-medium text-ink">
-              Colegio
-            </label>
-            <div className="relative">
-              <School className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-              <select
-                id="colegio"
-                name="colegio_id"
-                required
-                defaultValue=""
-                aria-describedby="colegio-ayuda"
-                className="h-11 w-full appearance-none rounded-xl border border-line bg-paper-raised pl-10 pr-3 text-sm text-ink outline-none focus-visible:border-primary"
-              >
-                <option value="" disabled>
-                  Selecciona tu colegio
-                </option>
-                {colegios.map((colegio) => (
-                  <option key={colegio.id} value={colegio.id}>
-                    {colegio.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <p id="colegio-ayuda" className="text-xs text-ink-soft">
-              ¿No encuentras tu colegio? Solicita a tu institución que se
-              comunique con preparatorIA.
-            </p>
-          </div>
-
-          <CampoConIcono
-            icon={GraduationCap}
-            label="Curso (ej. 11-A)"
-            name="curso"
-            type="text"
-          />
+          <ColegioCursoCampos colegios={colegios} modo="estudiante" />
+          <p className="-mt-2 text-xs text-ink-soft">
+            ¿No encuentras tu colegio? Solicita a tu institución que se
+            comunique con preparatorIA.
+          </p>
 
           {esMenorDeEdad(fechaNacimiento) && (
             <div className="rounded-xl border border-gold/40 bg-gold-soft p-3">
@@ -178,14 +130,7 @@ export function RegistroForm({
             type="email"
             required
           />
-          <CampoConIcono
-            icon={Lock}
-            label="Contraseña"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-          />
+          <CamposContrasena />
 
           {state.error && (
             <p className="text-sm text-alert" role="alert">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Check, Wallet } from "lucide-react";
+import { Check } from "lucide-react";
 import { enviarPriorizacion, type PriorizarGastosState } from "./actions";
 import { Button } from "@/components/ui/button";
 import { FeedbackCard } from "@/components/feedback-card";

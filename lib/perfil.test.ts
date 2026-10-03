@@ -4,8 +4,7 @@ import {
   calcularEdadPerfil,
   debeNotificarAcudiente,
   esAvatarValido,
-  validarNombrePerfil,
-} from "./perfil";
+  validarNombrePerfil, resolverAvatar, rutaImagenAvatar } from "./perfil";
 
 describe("perfil y avatares", () => {
   it("acepta únicamente IDs del catálogo fijo, nunca rutas arbitrarias", () => {
@@ -39,5 +38,21 @@ describe("perfil y avatares", () => {
       debeNotificarAcudiente("2000-01-01", "acudiente@example.com", hoy),
     ).toBe(false);
     expect(debeNotificarAcudiente("2010-01-01", null, hoy)).toBe(false);
+  });
+});
+
+describe("resolverAvatar", () => {
+  it("devuelve el avatar guardado cuando es válido", () => {
+    expect(resolverAvatar("avatar_05").id).toBe("avatar_05");
+  });
+  it("cae en avatar_01 si el id es inválido, vacío o nulo", () => {
+    expect(resolverAvatar("avatar_99").id).toBe("avatar_01");
+    expect(resolverAvatar("").id).toBe("avatar_01");
+    expect(resolverAvatar(null).id).toBe("avatar_01");
+    expect(resolverAvatar(undefined).id).toBe("avatar_01");
+  });
+  it("arma la ruta de la imagen solo con ids válidos", () => {
+    expect(rutaImagenAvatar("avatar_03")).toBe("/avatares/avatar_03.png");
+    expect(rutaImagenAvatar("../../etc/passwd")).toBe("/avatares/avatar_01.png");
   });
 });

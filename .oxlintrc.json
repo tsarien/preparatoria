@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "react",
+    "nextjs",
+    "jsx-a11y",
+    "import"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+    "react/react-in-jsx-scope": "off",
+    "jsx-a11y/alt-text": "warn",
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "jsx-a11y/label-has-associated-control": "off",
+    "jsx-a11y/heading-has-content": "off",
+    "jsx-a11y/control-has-associated-label": "off",
+    "import/no-unassigned-import": "off",
+    "nextjs/no-page-custom-font": "off",
+    "react/set-state-in-effect": "warn",
+    "react/exhaustive-effect-dependencies": "off"
+  },
+  "ignorePatterns": [
+    ".next",
+    "node_modules",
+    "next-env.d.ts",
+    "playwright-report",
+    "test-results"
+  ]
+}

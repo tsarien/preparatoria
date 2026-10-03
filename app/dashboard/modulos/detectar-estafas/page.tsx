@@ -1,3 +1,4 @@
+import { etiquetaMision } from "@/lib/modulos";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ICONO_MODULO } from "@/components/encabezado-pagina";
@@ -56,7 +57,7 @@ export default async function ModuloEstafasPage() {
         volverHref="/dashboard"
         volverEtiqueta="Volver al mapa"
         categoria="Seguridad digital"
-        mision="Misión 02"
+        mision={etiquetaMision("detectar-estafas")}
         titulo={modulo?.nombre ?? "Detectar estafas"}
         tagline={
           modulo?.descripcion ??

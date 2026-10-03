@@ -67,8 +67,60 @@ export const AVATARES = [
 
 export type AvatarId = (typeof AVATARES)[number]["id"];
 
+export type AvatarDefinicion = (typeof AVATARES)[number];
+
 export function esAvatarValido(avatarId: string): avatarId is AvatarId {
   return AVATARES.some((avatar) => avatar.id === avatarId);
+}
+
+/** Avatar de respaldo cuando el guardado no existe o es inválido. */
+export const AVATAR_POR_DEFECTO: AvatarId = "avatar_01";
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * AVATARES CON IMAGEN — cómo activarlos cuando las imágenes estén listas
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Hoy los avatares se dibujan con CSS (ver AVATARES arriba y components/avatar-usuario.tsx).
+ * El código ya está preparado para usar imágenes reales. Para activarlas:
+ *
+ *   1. Guarda 8 imágenes en  public/avatares/  con EXACTAMENTE estos nombres:
+ *        avatar_01.png  avatar_02.png  avatar_03.png  avatar_04.png
+ *        avatar_05.png  avatar_06.png  avatar_07.png  avatar_08.png
+ *      (el nombre = el id guardado en public.perfiles.avatar_id; no se cambia la BD).
+ *   2. Cambia AVATARES_CON_IMAGEN a `true`.
+ *
+ * ESPECIFICACIONES DE CADA IMAGEN
+ *   · Formato: PNG (WebP también sirve si cambias la extensión en rutaImagenAvatar).
+ *   · Tamaño: cuadrado 512 × 512 px (mínimo 256 × 256). Se muestra en círculo de 32 a 80 px.
+ *   · Fondo: sólido del color de la camiseta o transparente. Se recorta en círculo con
+ *     borde, así que NO dibujes el borde ni dejes elementos importantes en las esquinas.
+ *   · Encuadre: busto (cabeza y hombros) centrado, con ~10 % de margen alrededor.
+ *   · Estilo: flat / pixel art de preparatorIA, contorno oscuro grueso (#1F2430),
+ *     paleta de la marca (#6C4DFF, #FFB020, turquesa), juvenil y no infantil.
+ *   · Contenido: personajes FICTICIOS. Nunca fotografías de personas reales ni texto.
+ *   · Peso: ≤ 80 KB por imagen (se sirven con next/image y se optimizan solas).
+ *   · Orden/personalidad: respeta el orden de AVATARES (etiqueta del 01 al 08).
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export const AVATARES_CON_IMAGEN = false;
+
+/** Ruta pública de la imagen de un avatar (solo se usa si AVATARES_CON_IMAGEN es true). */
+export function rutaImagenAvatar(avatarId: string): string {
+  return `/avatares/${resolverAvatar(avatarId).id}.png`;
+}
+
+/**
+ * ÚNICO punto que convierte un avatar_id guardado en la definición del avatar.
+ * Cualquier id desconocido (null, vacío, inválido) cae en AVATAR_POR_DEFECTO. No dupliques
+ * este mapa: HUD, ranking, ajustes y el selector usan este helper.
+ */
+export function resolverAvatar(
+  avatarId: string | null | undefined,
+): AvatarDefinicion {
+  return (
+    AVATARES.find((avatar) => avatar.id === avatarId) ??
+    AVATARES.find((avatar) => avatar.id === AVATAR_POR_DEFECTO)!
+  );
 }
 
 export function validarNombrePerfil(nombre: string): string | null {

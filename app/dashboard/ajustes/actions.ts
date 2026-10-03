@@ -8,6 +8,10 @@ import {
   esAvatarValido,
   validarNombrePerfil,
 } from "@/lib/perfil";
+import { obtenerCursosColegio } from "@/lib/cursos-server";
+import { validarCursoEstudiante } from "@/lib/cursos";
+import { esUuid } from "@/lib/utils";
+import { validarContrasena } from "@/lib/registro";
 
 export interface ActualizarPerfilState {
   error?: string;
@@ -58,7 +62,7 @@ export async function actualizarPerfil(
     .trim()
     .toLowerCase();
   const colegioId = String(formData.get("colegio_id") ?? "").trim();
-  const curso = String(formData.get("curso") ?? "").trim();
+  let curso = String(formData.get("curso") ?? "").trim();
   const avatarId = String(formData.get("avatar_id") ?? "").trim();
   const errorNombre = validarNombrePerfil(nombre);
   if (errorNombre) return { error: errorNombre };
@@ -75,12 +79,32 @@ export async function actualizarPerfil(
   }
 
   if (colegioId && colegioId !== perfil.colegio_id) {
-    const { data: colegio } = await supabase
-      .from("colegios")
-      .select("id")
-      .eq("id", colegioId)
-      .maybeSingle<{ id: string }>();
+    const { data: colegio } = esUuid(colegioId)
+      ? await supabase
+          .from("colegios")
+          .select("id")
+          .eq("id", colegioId)
+          .eq("activo", true)
+          .maybeSingle<{ id: string }>()
+      : { data: null };
     if (!colegio) return { error: "Selecciona un colegio válido." };
+  }
+
+  // Estudiantes: el curso debe pertenecer al colegio (lista configurada por el administrador).
+  // Si el colegio no tiene cursos configurados se conserva el curso guardado solo cuando el
+  // colegio no cambia.
+  if (perfil.rol === "estudiante" && colegioId) {
+    const cursosDelColegio = await obtenerCursosColegio(supabase, colegioId);
+    if (cursosDelColegio.length === 0) {
+      curso =
+        colegioId === perfil.colegio_id && curso === (perfil.curso ?? "")
+          ? curso
+          : "";
+    } else {
+      const resultado = validarCursoEstudiante(curso, cursosDelColegio);
+      if (resultado.error) return { error: resultado.error };
+      curso = resultado.curso;
+    }
   }
 
   const correoActual = (user.email ?? "").toLowerCase();
@@ -169,10 +193,8 @@ export async function cambiarContrasena(
 
   const password = String(formData.get("password") ?? "");
   const confirmacion = String(formData.get("confirmacion") ?? "");
-  if (password.length < 8)
-    return { error: "La contraseña debe tener al menos 8 caracteres." };
-  if (password !== confirmacion)
-    return { error: "Las contraseñas no coinciden." };
+  const errorContrasena = validarContrasena(password, confirmacion);
+  if (errorContrasena) return { error: errorContrasena };
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error)

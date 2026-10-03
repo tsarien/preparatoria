@@ -1,9 +1,12 @@
 import { Trophy, Medal, Award, Crown } from "lucide-react";
+import { AvatarUsuario } from "@/components/avatar-usuario";
 import { cn } from "@/lib/utils";
 
 interface RankPlayerRowProps {
   posicion: number;
   nombre: string;
+  /** avatar_id del jugador (inválido o nulo → avatar_01). */
+  avatarId?: string | null;
   curso: string | null;
   nivel: number;
   xp: number;
@@ -40,6 +43,7 @@ const MEDALLAS = [
 export function RankPlayerRow({
   posicion,
   nombre,
+  avatarId,
   curso,
   nivel,
   xp,
@@ -47,7 +51,6 @@ export function RankPlayerRow({
   xpMaximo,
 }: RankPlayerRowProps) {
   const medalla = posicion <= 3 ? MEDALLAS[posicion - 1] : null;
-  const inicial = nombre.trim().charAt(0).toUpperCase() || "?";
 
   return (
     <li
@@ -75,17 +78,11 @@ export function RankPlayerRow({
       </span>
 
       {/* Avatar + identidad */}
-      <span
-        aria-hidden="true"
-        className={cn(
-          "grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 font-display text-sm font-bold",
-          esUsuarioActual
-            ? "border-gold bg-gold text-[#1f2430]"
-            : "border-primary/40 bg-primary-soft text-primary",
-        )}
-      >
-        {inicial}
-      </span>
+      <AvatarUsuario
+        avatarId={avatarId}
+        tamano={40}
+        className={esUsuarioActual ? "border-gold" : "border-primary/40"}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">

@@ -1,3 +1,4 @@
+import { etiquetaMision } from "@/lib/modulos";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ICONO_MODULO } from "@/components/encabezado-pagina";
@@ -56,7 +57,7 @@ export default async function ModuloAhorroPage() {
         volverHref="/dashboard"
         volverEtiqueta="Volver al mapa"
         categoria="Dinero"
-        mision="Misión 04"
+        mision={etiquetaMision("ahorro-metas")}
         titulo={modulo?.nombre ?? "Ahorro con metas"}
         tagline={
           modulo?.descripcion ?? "Construye poco a poco tu primera gran meta."

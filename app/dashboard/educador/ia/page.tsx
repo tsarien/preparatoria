@@ -2,10 +2,14 @@ import { GameModuleShell } from "@/components/game/game-module-shell";
 import { ConsultaIAEducativa } from "@/components/educador/consulta-ia-educativa";
 import { obtenerEstudiantesEducador } from "@/lib/educacion";
 import { requireEducador } from "@/lib/educacion-server";
+import { cargarEstadoIAEducativa } from "./actions";
 
 export default async function IAEducativaPage() {
   const { supabase } = await requireEducador();
-  const { estudiantes, error } = await obtenerEstudiantesEducador(supabase);
+  const [{ estudiantes, error }, estado] = await Promise.all([
+    obtenerEstudiantesEducador(supabase),
+    cargarEstadoIAEducativa(),
+  ]);
 
   return (
     <GameModuleShell ancho="estandar">
@@ -33,7 +37,7 @@ export default async function IAEducativaPage() {
           Aún no hay datos de progreso para consultar.
         </p>
       ) : (
-        <ConsultaIAEducativa estudiantes={estudiantes} />
+        <ConsultaIAEducativa estudiantes={estudiantes} estadoInicial={estado} />
       )}
     </GameModuleShell>
   );

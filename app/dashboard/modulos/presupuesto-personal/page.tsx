@@ -1,3 +1,4 @@
+import { etiquetaMision } from "@/lib/modulos";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ICONO_MODULO } from "@/components/encabezado-pagina";
@@ -57,7 +58,7 @@ export default async function ModuloPresupuestoPage() {
         volverHref="/dashboard"
         volverEtiqueta="Volver al mapa"
         categoria="Dinero"
-        mision="Misión 01"
+        mision={etiquetaMision("presupuesto-personal")}
         titulo={modulo?.nombre ?? "Presupuesto personal"}
         tagline={
           modulo?.descripcion ??

@@ -5,7 +5,7 @@
 //
 // El educador se crea siguiendo el MISMO flujo del registro real: invitación
 // consumida (crear_invitacion_educador + usada_en) y luego Auth Admin. El trigger
-// handle_new_user() (migración 0017) asigna el rol a partir de esa invitación.
+// handle_new_user() (definición vigente: migración 0019) asigna el rol a partir de esa invitación.
 import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";

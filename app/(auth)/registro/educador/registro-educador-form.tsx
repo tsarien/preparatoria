@@ -13,6 +13,8 @@ import {
 import { CampoConIcono } from "@/components/ui/campo-con-icono";
 import { CARGOS_EDUCATIVOS } from "@/lib/educadores";
 import { Lock, Mail, School, User } from "lucide-react";
+import { ColegioCursoCampos } from "@/components/auth/colegio-curso-campos";
+import { CamposContrasena } from "@/components/auth/campos-contrasena";
 import { registrarEducador, type RegistroEducadorState } from "./actions";
 
 const ESTADO_VACIO: RegistroEducadorState = {};
@@ -73,45 +75,13 @@ export function RegistroEducadorForm({
             type="email"
             required
           />
-          <CampoConIcono
-            icon={Lock}
-            label="Contraseña"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-          />
+          <CamposContrasena />
 
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="colegio_id"
-              className="text-sm font-medium text-ink"
-            >
-              Colegio / institución
-            </label>
-            <div className="relative">
-              <School
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
-                aria-hidden="true"
-              />
-              <select
-                id="colegio_id"
-                name="colegio_id"
-                required
-                defaultValue=""
-                className="h-11 w-full rounded-xl border border-line bg-paper-raised pl-10 pr-3 text-sm text-ink focus-visible:border-primary"
-              >
-                <option value="" disabled>
-                  Selecciona tu colegio
-                </option>
-                {colegios.map((colegio) => (
-                  <option key={colegio.id} value={colegio.id}>
-                    {colegio.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <ColegioCursoCampos
+            colegios={colegios}
+            modo="educador"
+            idPrefijo="edu"
+          />
 
           <CampoConIcono
             icon={Lock}
@@ -152,21 +122,6 @@ export function RegistroEducadorForm({
             required
             maxLength={80}
           />
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="cursos" className="text-sm font-medium text-ink">
-              Curso(s) que acompaña
-            </label>
-            <input
-              id="cursos"
-              name="cursos"
-              type="text"
-              required
-              maxLength={300}
-              placeholder="Ej. 10-A, 11-B"
-              className="h-11 w-full rounded-xl border border-line bg-paper-raised px-3 text-sm text-ink focus-visible:border-primary"
-            />
-          </div>
-
           {state.error && (
             <p className="text-sm text-alert" role="alert">
               {state.error}
@@ -177,6 +132,15 @@ export function RegistroEducadorForm({
           </Button>
         </form>
         <p className="mt-4 text-sm text-ink-soft">
+          ¿Ya tienes cuenta?{" "}
+          <Link
+            href="/login"
+            className="font-medium text-ink underline underline-offset-2"
+          >
+            Inicia sesión
+          </Link>
+        </p>
+        <p className="mt-2 text-sm text-ink-soft">
           ¿Eres estudiante?{" "}
           <Link
             href="/registro"

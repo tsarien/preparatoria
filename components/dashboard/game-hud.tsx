@@ -1,62 +1,137 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Settings, Sparkles, Trophy } from "lucide-react";
+import { Settings, Sparkles, Trophy, Wallet } from "lucide-react";
+import { AvatarUsuario } from "@/components/avatar-usuario";
+import { BotonCerrarSesion } from "@/components/boton-cerrar-sesion";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { cn } from "@/lib/utils";
 
 interface GameHUDProps {
   nombre: string;
+  /** avatar_id guardado en el perfil (se resuelve con resolverAvatar; inválido → avatar_01). */
+  avatarId?: string | null;
   saldo: number;
   nivel: number;
   xpEnNivel: number;
   xpPorNivel: number;
+  /**
+   * Modo demostración del educador: sin ranking (los educadores nunca participan en él) y sin
+   * "Cerrar sesión" propio (la cabecera educativa del layout ya lo trae).
+   */
+  modoDemo?: boolean;
 }
 
+const ACCION =
+  "game-chip press flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-xl border-2 text-sm font-medium text-ink transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none sm:w-auto sm:px-3";
+
 /**
- * Barra HUD del dashboard. Reemplaza al antiguo header + card "Mi Vida Simulada".
+ * Barra HUD del dashboard.
  *
- * Layout:
- *   ≥lg → una sola fila: [identidad] [saldo] [nivel+xp] [guía] [ranking] [ajustes]
- *   <lg → dos filas:  [logo + saludo]  y  [stats + acciones]
+ * Layout (apilado SIEMPRE, para que el nombre nunca quede sin ancho):
+ *   fila 1 · [avatar + "Hola, nombre"]  y a la derecha (≥sm) las acciones
+ *   fila 2 · [saldo] [nivel + XP]
+ *   <sm    · las acciones bajan a su propia fila (solo iconos)
+ *
+ * Antes la identidad iba en una fila con `min-w-0` + `flex-1` junto a los chips y botones: en
+ * pantallas angostas el bloque del nombre se encogía a casi 0 px y `overflow-wrap` partía el texto
+ * letra por letra (vertical). Ahora el nombre ocupa su propia línea, se ajusta en 2 líneas como
+ * máximo y NUNCA se parte en vertical.
  *
  * Es un Server Component a propósito: no tiene estado ni eventos.
  */
 export function GameHUD({
   nombre,
+  avatarId,
   saldo,
   nivel,
   xpEnNivel,
   xpPorNivel,
+  modoDemo = false,
 }: GameHUDProps) {
-  const inicial = nombre.trim().charAt(0).toUpperCase() || "?";
-
   return (
-    <header className="game-hud relative overflow-hidden rounded-2xl">
+    <header
+      data-testid="game-hud"
+      className="game-hud relative overflow-hidden rounded-2xl"
+    >
       {/* Highlight superior tipo "bisel" */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent"
       />
 
-      <div className="flex flex-col gap-3 p-3 sm:p-4 lg:flex-row lg:items-center lg:gap-4">
-        {/* Identidad */}
-        <div className="flex min-w-0 items-center gap-3 lg:flex-1">
-          <Image
-            src="/logo-icon.png"
-            alt=""
-            width={400}
-            height={355}
-            className="hidden h-9 w-auto shrink-0 sm:block"
-            priority
-          />
-          <span
-            aria-hidden="true"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-gold/70 bg-primary-soft font-display text-base font-bold text-primary"
-          >
-            {inicial}
-          </span>
-          <p className="min-w-0 flex-1 wrap-break-word font-display text-base font-semibold leading-tight text-ink sm:text-lg">
-            Hola, <span className="text-primary">{nombre}</span>
-          </p>
+      <div className="flex flex-col gap-3 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Identidad */}
+          <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+            <Image
+              src="/logo-icon.png"
+              alt=""
+              width={400}
+              height={355}
+              className="hidden h-9 w-auto shrink-0 md:block"
+              priority
+            />
+            <AvatarUsuario
+              avatarId={avatarId}
+              tamano={44}
+              className="border-gold/70"
+            />
+            <p
+              data-testid="hud-nombre"
+              className="min-w-0 flex-1 font-display text-base font-semibold leading-tight text-ink sm:text-lg"
+            >
+              <span className="block text-xs font-medium text-ink-soft">Hola,</span>
+              <span
+                title={nombre}
+                className="line-clamp-2 break-words text-primary [overflow-wrap:break-word]"
+              >
+                {nombre}
+              </span>
+            </p>
+          </div>
+
+          {/* Acciones */}
+          <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
+            <Link
+              href="/dashboard/billetera"
+              aria-label="Ver billetera completa"
+              title="Ver billetera completa"
+              className={cn(ACCION, "border-turquoise/60 bg-turquoise-soft")}
+            >
+              <Wallet className="h-4 w-4 text-turquoise" aria-hidden="true" />
+              <span className="hidden sm:inline">Billetera</span>
+            </Link>
+            <Link
+              href="/dashboard/guia"
+              aria-label="Guía"
+              title="Guía"
+              className={cn(ACCION, "border-primary/50 bg-primary-soft")}
+            >
+              <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+              <span className="hidden sm:inline">Guía</span>
+            </Link>
+            {!modoDemo && (
+              <Link
+                href="/dashboard/ranking"
+                aria-label="Ranking"
+                title="Ranking"
+                className={cn(ACCION, "border-gold/50 bg-gold-soft")}
+              >
+                <Trophy className="h-4 w-4 text-gold" aria-hidden="true" />
+                <span className="hidden sm:inline">Ranking</span>
+              </Link>
+            )}
+            <Link
+              href="/dashboard/ajustes"
+              aria-label="Ajustes"
+              title="Ajustes"
+              className={cn(ACCION, "border-primary/30 bg-paper-raised text-ink-soft")}
+            >
+              <Settings className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Ajustes</span>
+            </Link>
+            {!modoDemo && <BotonCerrarSesion />}
+          </div>
         </div>
 
         {/* Stats */}
@@ -100,31 +175,6 @@ export function GameHUD({
               <ProgressBar value={xpEnNivel} max={xpPorNivel} variant="xp" />
             </div>
           </div>
-        </div>
-
-        {/* Acciones */}
-        <div className="flex items-center gap-2 lg:flex-none">
-          <Link
-            href="/dashboard/guia"
-            className="game-chip flex h-10 items-center gap-2 rounded-xl border-2 border-primary/50 bg-primary-soft px-3 text-sm font-medium text-ink transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none"
-          >
-            <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-            <span className="hidden sm:inline">Guía</span>
-          </Link>
-          <Link
-            href="/dashboard/ranking"
-            className="game-chip flex h-10 items-center gap-2 rounded-xl border-2 border-gold/50 bg-gold-soft px-3 text-sm font-medium text-ink transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none"
-          >
-            <Trophy className="h-4 w-4 text-gold" aria-hidden="true" />
-            <span className="hidden sm:inline">Ranking</span>
-          </Link>
-          <Link
-            href="/dashboard/ajustes"
-            aria-label="Perfil"
-            className="game-chip grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 border-primary/30 bg-paper-raised text-ink-soft transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none"
-          >
-            <Settings className="h-4 w-4" aria-hidden="true" />
-          </Link>
         </div>
       </div>
     </header>

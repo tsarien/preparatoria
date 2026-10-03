@@ -203,3 +203,27 @@ preparatoria/
 - **17 migraciones** SQL, en orden de aplicación (más `setup_completo.sql`, su concatenación, y `reset_public.sql`).
 - **8 archivos de prueba** unitarios (84 pruebas con Vitest) + 3 archivos de pruebas E2E (44 pruebas con Playwright, entre desktop y mobile).
 - **3 "personajes"/usos de IA**: `tutor.ts` (evaluación estructurada), `estafador.ts` y `arrendador.ts` (simulación conversacional).
+
+## Actualización — Fase 5 (roles, administración, soporte, IA flotante)
+
+> Esta sección complementa el árbol anterior (que aún lista 17 migraciones). Las migraciones vigentes
+> son **0001–0024**; ojo: existen dos archivos `0017_*` (histórico, no se renombran) y la `0019` fija
+> la definición definitiva de `handle_new_user()`.
+
+### Migraciones nuevas
+
+| Archivo | Qué hace |
+| --- | --- |
+| `0019_trigger_roles_definitivo.sql` | `handle_new_user()` definitiva (rol por `app_metadata`/invitación, nunca por `user_metadata`; fecha de nacimiento obligatoria para estudiantes); `perfiles.activo`; `personajes.modo_juego` (`estudiante` \| `educador_demo`); cron de eventos y ranking excluyen educadores; el ranking devuelve `avatar_id` y `es_usuario_actual` |
+| `0020_admin_colegios_cursos.sql` | `colegios.activo`; tabla `cursos_colegio`; `es_administrador()` y `mi_colegio_id()`; `actividad_sistema` (auditoría); `actualizar_perfil()` valida curso/colegio |
+| `0021_invitaciones_admin.sql` | `invitaciones_educador.revocada_en/creada_por`; una sola invitación vigente por colegio+correo |
+| `0022_tickets_soporte.sql` | `tickets_soporte`, `tickets_mensajes`, RLS y funciones `responder_ticket` / `gestionar_ticket` |
+| `0023_conversaciones_ia.sql` | `conversaciones_ia`, `mensajes_ia_guia.conversacion_id` (con backfill), `mensajes_ia_educativa` |
+| `0024_eliminar_cuenta.sql` | `eliminar_datos_usuario()` (solo `service_role`) |
+
+### Rutas y componentes nuevos (resumen)
+
+- **Admin:** `app/dashboard/admin/{page, colegios, colegios/[id], educadores, educadores/[id], estudiantes, estudiantes/[id], tickets, tickets/[id], actividad}` y `actions.ts` (toda acción llama a `autorizarAdmin()`); `lib/admin-server.ts`, `lib/admin-datos.ts`, `lib/admin.ts`; `components/admin/*`.
+- **Soporte:** `components/soporte/boton-ayuda.tsx`, `app/actions/soporte.ts`, `lib/soporte.ts`.
+- **IA:** `components/game/chat-guia-panel.tsx` (UI única de la guía), `components/game/floating-ai-guide.tsx` (cajón flotante), `app/dashboard/educador/ia/{actions,types}.ts`, `lib/ia-educativa.ts`.
+- **Compartidos:** `lib/modulos.ts` (orden oficial de misiones), `lib/periodos.ts`, `lib/cursos.ts`, `lib/registro.ts`, `lib/roles.ts`, `components/avatar-usuario.tsx`, `components/boton-cerrar-sesion.tsx`, `components/navegacion-panel.tsx`, `components/auth/{colegio-curso-campos,campos-contrasena}.tsx`.

@@ -439,3 +439,45 @@ node scripts/seed-test-users.mjs
 ```
 
 El script falla antes de crear cuentas si faltan las migraciones, colegios o credenciales de prueba, se niega a correr en producción y nunca imprime contraseñas. El educador de seed usa el mismo mecanismo de invitación que el registro real, por lo que también sirve como prueba del trigger `0017`; no lo reemplaza ni lo debilita.
+
+---
+
+## Fase 5 — Roles, administración, soporte e IA flotante
+
+Esta fase añade el rol **administrador**, el soporte por tickets, el chat flotante de la IA Guía con
+historial persistente, la IA educativa del educador con historial propio y el modo demostración del
+juego para educadores. Los detalles de arquitectura y seguridad están en `docs/CAMBIOS_ROLES_ADMIN_IA.md`.
+
+### Pasos adicionales para esta fase
+
+1. **Aplicar las migraciones nuevas** (`0019` a `0024`) en Supabase. En una base nueva usa
+   `supabase/setup_completo.sql` (se regenera con `node scripts/build-setup-sql.mjs`).
+   La `0019` es **imprescindible**: reemplaza la definición de `handle_new_user()` que dejaba a todo
+   educador como estudiante.
+2. **Crear el administrador.** En tu `.env.local` (nunca en el repositorio) define
+   `ADMIN_EMAIL` y `ADMIN_PASSWORD` (≥ 12 caracteres), además de `SUPABASE_SERVICE_ROLE_KEY`, y ejecuta:
+   ```
+   npm run admin:crear
+   ```
+   El script es idempotente, no imprime la contraseña y no promueve cuentas existentes. Luego puedes
+   borrar `ADMIN_PASSWORD` del archivo. El administrador entra por `/login` y llega a `/dashboard/admin`.
+3. **Configurar cursos por colegio.** En `/dashboard/admin/colegios/[id]` agrega los cursos de cada colegio:
+   son los únicos que verán estudiantes y educadores al registrarse. Un colegio sin cursos no permite
+   registrar educadores.
+4. **Avatares con imagen (opcional).** Hoy se dibujan con CSS. Cuando tengas las imágenes, sigue las
+   especificaciones del comentario en `lib/perfil.ts` (carpeta `public/avatares/`, `avatar_01.png`…`avatar_08.png`)
+   y cambia `AVATARES_CON_IMAGEN` a `true`.
+
+### Comandos
+
+| Comando | Qué hace |
+| --- | --- |
+| `npm test` | Pruebas unitarias (Vitest) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | Linter (oxlint; ver nota abajo) |
+| `npm run db:test` | Aplica todas las migraciones en un PostgreSQL local y ejecuta `supabase/tests/*.test.sql` (RLS, trigger, tickets…). Requiere PostgreSQL local |
+| `npm run admin:crear` | Crea el administrador inicial |
+| `npm run test:e2e` | Pruebas E2E (Playwright). Las de `hud-sesion.spec.ts` requieren `E2E_ESTUDIANTE_EMAIL` y `E2E_ESTUDIANTE_PASSWORD` |
+
+> **Nota sobre el linter:** `eslint-config-next` carga `typescript-eslint`, que aún no soporta TypeScript 7
+> (el que usa el proyecto). Por eso se usa `oxlint` (`.oxlintrc.json`) y el tipado se verifica con `npm run typecheck`.

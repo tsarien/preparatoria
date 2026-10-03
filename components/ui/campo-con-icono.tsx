@@ -1,9 +1,11 @@
-import type { ComponentType, InputHTMLAttributes } from "react";
+import type { ComponentType, InputHTMLAttributes, Ref } from "react";
 
 interface CampoConIconoProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   hint?: string;
   icon: ComponentType<{ className?: string }>;
+  /** React 19 entrega `ref` como prop normal en componentes de función. */
+  ref?: Ref<HTMLInputElement>;
 }
 
 export function CampoConIcono({ label, hint, icon: Icon, ...inputProps }: CampoConIconoProps) {

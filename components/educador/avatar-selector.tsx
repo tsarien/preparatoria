@@ -2,42 +2,11 @@
 
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { AVATARES, type AvatarId } from "@/lib/perfil";
-
-function AvatarIlustrado({
-  avatarId,
-  etiqueta,
-}: {
-  avatarId: AvatarId;
-  etiqueta: string;
-}) {
-  const avatar = AVATARES.find((item) => item.id === avatarId)!;
-
-  return (
-    <span
-      aria-hidden="true"
-      className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-line"
-      style={{ backgroundColor: avatar.camisa }}
-    >
-      <span className="absolute bottom-[-0.4rem] h-7 w-10 rounded-t-full bg-paper-raised/50" />
-      <span
-        className="absolute top-[0.48rem] h-8 w-7 rounded-[45%]"
-        style={{ backgroundColor: avatar.piel }}
-      />
-      <span
-        className={`absolute top-[0.34rem] h-4 w-7 ${avatar.cabelloClase}`}
-        style={{ backgroundColor: avatar.cabello }}
-      />
-      <span className="absolute left-[1.18rem] top-[1.22rem] h-1 w-1 rounded-full bg-ink" />
-      <span className="absolute right-[1.18rem] top-[1.22rem] h-1 w-1 rounded-full bg-ink" />
-      <span className="absolute top-[1.75rem] h-1 w-2 rounded-b-full border-b border-ink/70" />
-      <span className="sr-only">{etiqueta}</span>
-    </span>
-  );
-}
+import { AvatarUsuario } from "@/components/avatar-usuario";
+import { AVATARES, resolverAvatar } from "@/lib/perfil";
 
 export function AvatarSelector({ value }: { value: string }) {
-  const [seleccionadoActual, setSeleccionadoActual] = useState(value);
+  const [seleccionadoActual, setSeleccionadoActual] = useState(resolverAvatar(value).id);
 
   return (
     <fieldset className="flex flex-col gap-3">
@@ -66,10 +35,7 @@ export function AvatarSelector({ value }: { value: string }) {
                 aria-label={`Avatar ${avatar.id.replace("avatar_", "")} ${avatar.etiqueta}`}
                 className="sr-only"
               />
-              <AvatarIlustrado
-                avatarId={avatar.id}
-                etiqueta={avatar.etiqueta}
-              />
+              <AvatarUsuario avatarId={avatar.id} tamano={56} />
               <span className="min-w-0 break-words">{avatar.etiqueta}</span>
               {seleccionado && (
                 <Check

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Trophy, Sparkles } from "lucide-react";
+import { AvatarUsuario } from "@/components/avatar-usuario";
 import { cn } from "@/lib/utils";
 
 interface MyRankCardProps {
   posicion: number | null; // null = fuera del top 50 / sin colegio
   nombre: string;
+  avatarId?: string | null;
   nivel: number;
   xp: number;
   enTop50: boolean;
@@ -21,14 +23,13 @@ interface MyRankCardProps {
 export function MyRankCard({
   posicion,
   nombre,
+  avatarId,
   nivel,
   xp,
   enTop50,
   totalJugadores,
   className,
 }: MyRankCardProps) {
-  const inicial = nombre.trim().charAt(0).toUpperCase() || "?";
-
   return (
     <div
       className={cn(
@@ -62,12 +63,7 @@ export function MyRankCard({
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-1 pb-1">
               <span className="flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-gold bg-paper-raised font-display text-xs font-bold text-ink"
-                >
-                  {inicial}
-                </span>
+                <AvatarUsuario avatarId={avatarId} tamano={28} className="border-gold" />
                 <span className="wrap-break-word text-sm font-semibold text-ink">
                   {nombre}
                 </span>

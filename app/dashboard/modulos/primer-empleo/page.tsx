@@ -1,13 +1,11 @@
 import { notFound, redirect } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { GameModuleShell } from "@/components/game/game-module-shell";
-import { EncabezadoPagina } from "@/components/encabezado-pagina";
+import { GameMissionHeader } from "@/components/game/game-mission-header";
 import { Card } from "@/components/ui/card";
-import { ProgressBar } from "@/components/ui/progress-bar";
 import { GameStateBadge } from "@/components/game/game-state-badge";
-import { RETOS_PRIMER_EMPLEO } from "@/lib/primer-empleo";
+import { etiquetaMision } from "@/lib/modulos";
 
 export default async function PrimerEmpleoPage() {
   const supabase = await createSupabaseServerClient();
@@ -64,40 +62,16 @@ export default async function PrimerEmpleoPage() {
 
   return (
     <GameModuleShell>
-      <EncabezadoPagina
-        volverHref="/dashboard/modulos"
-        volverEtiqueta="Todos los retos"
+      <GameMissionHeader
+        volverHref="/dashboard"
+        volverEtiqueta="Volver al mapa"
+        categoria="Vida profesional"
+        mision={etiquetaMision("primer-empleo")}
         titulo="Primer empleo"
-        descripcion="Practica cómo mostrar tus habilidades, revisar ofertas y prepararte para una entrevista."
+        tagline="Practica cómo mostrar tus habilidades, revisar ofertas y prepararte para una entrevista."
         icono="/iconos/icono-empleo.png"
+        progreso={{ completados: totalCompletados, total: retosConEstado.length }}
       />
-
-      <Card tone="game" className="p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="font-display text-lg font-semibold text-ink">
-              Tu progreso
-            </p>
-            <p className="text-sm text-ink-soft">
-              Cada reto completado suma XP.
-            </p>
-          </div>
-          <Image
-            src="/mascota/mascota-pensativo.png"
-            alt=""
-            width={80}
-            height={80}
-            className="h-12 w-12 shrink-0 object-contain"
-          />
-        </div>
-        <div className="mt-3">
-          <ProgressBar
-            value={totalCompletados}
-            max={RETOS_PRIMER_EMPLEO.length}
-            label={`${totalCompletados} de ${RETOS_PRIMER_EMPLEO.length} retos completados`}
-          />
-        </div>
-      </Card>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {retosConEstado.map((reto, indice) => (

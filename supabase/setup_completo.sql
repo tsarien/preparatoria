@@ -1,6 +1,6 @@
 -- preparatorIA — instalación completa (generado; NO editar a mano)
 -- Regenerar con: node scripts/build-setup-sql.mjs
--- Contiene 17 migraciones en orden. Úsalo en una base vacía (ver supabase/reset_public.sql).
+-- Contiene 25 migraciones en orden. Úsalo en una base vacía (ver supabase/reset_public.sql).
 
 -- ════════════════════════════════════════════════════════════
 -- 0001_core_schema.sql
@@ -1999,3 +1999,1097 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 revoke all on function public.handle_new_user() from public, anon, authenticated;
+
+-- ════════════════════════════════════════════════════════════
+-- 0017_fix_auth_profile_trigger.sql
+-- ════════════════════════════════════════════════════════════
+-- Corrige el trigger: el INSERT del perfil debe incluir explícitamente el rol.
+-- Necesario para proyectos que ya aplicaron 0012_roles_educadores.sql.
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rol text;
+  v_fecha_nacimiento date;
+  v_es_menor boolean;
+  v_colegio_id uuid;
+begin
+  -- raw_user_meta_data es editable por el usuario; solo app_metadata asigna educador.
+  v_rol := case
+    when new.raw_app_meta_data ->> 'rol' = 'educador' then 'educador'
+    else 'estudiante'
+  end;
+  v_colegio_id := case
+    when v_rol = 'educador'
+      then nullif(new.raw_app_meta_data ->> 'colegio_id', '')::uuid
+    else nullif(new.raw_user_meta_data ->> 'colegio_id', '')::uuid
+  end;
+
+  if v_rol = 'estudiante' then
+    v_fecha_nacimiento := nullif(new.raw_user_meta_data ->> 'fecha_nacimiento', '')::date;
+  end if;
+  v_es_menor := v_rol = 'estudiante'
+    and v_fecha_nacimiento is not null
+    and age(v_fecha_nacimiento) < interval '18 years';
+
+  insert into public.perfiles (
+    id, nombre, fecha_nacimiento, colegio_id, curso,
+    correo_acudiente, consentimiento_acudiente, rol,
+    cargo_educativo, area_educativa, cursos_educativos
+  )
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'nombre', 'Estudiante'),
+    v_fecha_nacimiento,
+    v_colegio_id,
+    new.raw_user_meta_data ->> 'curso',
+    new.raw_user_meta_data ->> 'correo_acudiente',
+    case when v_es_menor then 'pendiente' else 'aprobado' end,
+    v_rol,
+    case when v_rol = 'educador' then new.raw_user_meta_data ->> 'cargo_educativo' end,
+    case when v_rol = 'educador' then new.raw_user_meta_data ->> 'area_educativa' end,
+    case
+      when v_rol = 'educador'
+        then coalesce(array(select jsonb_array_elements_text(new.raw_user_meta_data -> 'cursos_educativos')), '{}')
+      else '{}'
+    end
+  );
+
+  if v_rol = 'estudiante' then
+    insert into public.personajes (usuario_id, saldo_billetera, salario_mensual, nivel, xp)
+    values (new.id, 0, 1200000, 1, 0);
+
+    if v_es_menor then
+      insert into public.solicitudes_consentimiento (perfil_id) values (new.id);
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+-- Reasocia explícitamente el trigger a la versión corregida de la función.
+drop trigger if exists on_auth_user_created on auth.users;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ════════════════════════════════════════════════════════════
+-- 0018_educator_invitation_role.sql
+-- ════════════════════════════════════════════════════════════
+-- Asigna educador desde una invitación consumida y vinculada al UUID de Auth.
+-- No depende del momento en que GoTrue persiste raw_app_meta_data.
+
+alter table public.invitaciones_educador
+  add column if not exists usuario_id uuid;
+
+create unique index if not exists invitaciones_educador_usuario_idx
+  on public.invitaciones_educador (usuario_id)
+  where usuario_id is not null;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rol text;
+  v_fecha_nacimiento date;
+  v_es_menor boolean;
+  v_es_educador boolean := false;
+  v_colegio_id uuid;
+begin
+  select invitacion.colegio_id
+    into v_colegio_id
+  from public.invitaciones_educador as invitacion
+  where invitacion.usuario_id = new.id
+    and lower(invitacion.correo_institucional) = lower(new.email)
+    and invitacion.usada_en is not null
+    and invitacion.expira_en > now()
+  for update;
+
+  v_es_educador := found;
+  v_rol := case when v_es_educador then 'educador' else 'estudiante' end;
+
+  if v_rol = 'estudiante' then
+    v_fecha_nacimiento := nullif(new.raw_user_meta_data ->> 'fecha_nacimiento', '')::date;
+    v_colegio_id := nullif(new.raw_user_meta_data ->> 'colegio_id', '')::uuid;
+  end if;
+
+  v_es_menor := v_rol = 'estudiante'
+    and v_fecha_nacimiento is not null
+    and age(v_fecha_nacimiento) < interval '18 years';
+
+  insert into public.perfiles (
+    id, nombre, fecha_nacimiento, colegio_id, curso,
+    correo_acudiente, consentimiento_acudiente, rol,
+    cargo_educativo, area_educativa, cursos_educativos
+  )
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'nombre', 'Estudiante'),
+    v_fecha_nacimiento,
+    v_colegio_id,
+    case when v_rol = 'estudiante' then new.raw_user_meta_data ->> 'curso' end,
+    case when v_rol = 'estudiante' then new.raw_user_meta_data ->> 'correo_acudiente' end,
+    case when v_es_menor then 'pendiente' else 'aprobado' end,
+    v_rol,
+    case when v_es_educador then new.raw_user_meta_data ->> 'cargo_educativo' end,
+    case when v_es_educador then new.raw_user_meta_data ->> 'area_educativa' end,
+    case
+      when v_es_educador
+        then coalesce(array(select jsonb_array_elements_text(new.raw_user_meta_data -> 'cursos_educativos')), '{}')
+      else '{}'
+    end
+  );
+
+  if v_rol = 'estudiante' then
+    insert into public.personajes (usuario_id, saldo_billetera, salario_mensual, nivel, xp)
+    values (new.id, 0, 1200000, 1, 0);
+
+    if v_es_menor then
+      insert into public.solicitudes_consentimiento (perfil_id) values (new.id);
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+
+-- ════════════════════════════════════════════════════════════
+-- 0019_trigger_roles_definitivo.sql
+-- ════════════════════════════════════════════════════════════
+-- preparatorIA — 0019: definición ÚNICA y correcta de handle_new_user() + separación educador/estudiante.
+--
+-- QUÉ CORRIGE
+--   Las migraciones 0017_auth_trigger_roles, 0017_fix_auth_profile_trigger y 0018 redefinen
+--   handle_new_user(). Al ordenarse alfabéticamente gana la 0018, que exige que la invitación ya
+--   tenga el UUID del usuario ANTES de que el usuario exista (imposible): todo educador quedaba como
+--   'estudiante', sin colegio y con personaje dentro del ranking. Esta migración NO edita las
+--   anteriores: las reemplaza con CREATE OR REPLACE, así que esta es la versión que queda vigente.
+--
+-- QUÉ HACE
+--   1. perfiles.activo: permite desactivar cuentas (la app cierra sesión y Auth las bloquea).
+--   2. personajes.modo_juego: 'estudiante' | 'educador_demo'. El educador juega con un personaje
+--      de práctica que se EXCLUYE del ranking, de los reportes y de los eventos diarios.
+--   3. handle_new_user(): decide el rol SOLO con datos que el navegador no puede editar:
+--        administrador → raw_app_meta_data.rol (solo la service-role escribe app_metadata)
+--        educador      → invitación consumida por el backend para ese correo (ventana de 10 min)
+--                        o, como respaldo, raw_app_meta_data.rol = 'educador'
+--        estudiante    → cualquier otro caso. EXIGE fecha de nacimiento válida: sin ella el alta se
+--                        rechaza (así nadie se salta el consentimiento del acudiente por la API).
+--   4. generar_eventos_diarios(): ignora personajes de demostración y cuentas inactivas.
+--   5. obtener_ranking_colegio(): solo estudiantes activos, e incluye avatar_id y es_usuario_actual
+--      (para marcar "tú" sin comparar por nombre y sin exponer ids ajenos).
+
+-- ─────────────────────────────────────────────
+-- 1 y 2. Columnas nuevas
+-- ─────────────────────────────────────────────
+alter table public.perfiles
+  add column if not exists activo boolean not null default true;
+
+alter table public.personajes
+  add column if not exists modo_juego text not null default 'estudiante';
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'personajes_modo_juego_check'
+      and conrelid = 'public.personajes'::regclass
+  ) then
+    alter table public.personajes
+      add constraint personajes_modo_juego_check
+      check (modo_juego in ('estudiante', 'educador_demo'));
+  end if;
+end;
+$$;
+
+create index if not exists personajes_modo_juego_idx on public.personajes (modo_juego);
+
+-- ─────────────────────────────────────────────
+-- 3. handle_new_user() definitiva
+-- ─────────────────────────────────────────────
+create or replace function public.uuid_seguro(p_texto text)
+returns uuid
+language sql
+immutable
+as $$
+  select case
+    when p_texto ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      then p_texto::uuid
+  end;
+$$;
+
+revoke all on function public.uuid_seguro(text) from public;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_meta jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
+  v_app jsonb := coalesce(new.raw_app_meta_data, '{}'::jsonb);
+  v_invitacion public.invitaciones_educador;
+  v_rol text := 'estudiante';
+  v_colegio_id uuid;
+  v_fecha date;
+  v_es_menor boolean := false;
+  v_cursos text[] := '{}';
+  v_nombre text;
+begin
+  -- Rol: nunca desde user_metadata (lo edita el usuario en signUp).
+  if v_app ->> 'rol' = 'administrador' then
+    v_rol := 'administrador';
+  else
+    select * into v_invitacion
+    from public.invitaciones_educador
+    where lower(correo_institucional) = lower(new.email)
+      and usada_en is not null
+      and usuario_id is null
+      and usada_en > now() - interval '10 minutes'
+    order by usada_en desc
+    limit 1
+    for update;
+
+    if found then
+      v_rol := 'educador';
+      v_colegio_id := v_invitacion.colegio_id;
+    elsif v_app ->> 'rol' = 'educador' then
+      v_rol := 'educador';
+      v_colegio_id := public.uuid_seguro(v_app ->> 'colegio_id');
+    end if;
+  end if;
+
+  if v_rol = 'estudiante' then
+    v_colegio_id := public.uuid_seguro(v_meta ->> 'colegio_id');
+    begin
+      v_fecha := nullif(v_meta ->> 'fecha_nacimiento', '')::date;
+    exception when others then
+      v_fecha := null;
+    end;
+    -- Fecha obligatoria: sin ella no se puede decidir si hace falta el consentimiento del acudiente.
+    if v_fecha is null or v_fecha > current_date or v_fecha < date '1900-01-01' then
+      raise exception 'La fecha de nacimiento es obligatoria y debe ser válida.'
+        using errcode = '22023';
+    end if;
+    v_es_menor := age(v_fecha) < interval '18 years';
+  elsif v_rol = 'educador'
+        and jsonb_typeof(v_meta -> 'cursos_educativos') = 'array' then
+    v_cursos := array(
+      select left(curso, 30)
+      from jsonb_array_elements_text(v_meta -> 'cursos_educativos') as curso
+      limit 10
+    );
+  end if;
+
+  -- Un colegio inexistente no debe romper el alta por la llave foránea.
+  if v_colegio_id is not null
+     and not exists (select 1 from public.colegios where id = v_colegio_id) then
+    v_colegio_id := null;
+  end if;
+
+  v_nombre := left(
+    coalesce(
+      nullif(trim(v_meta ->> 'nombre'), ''),
+      case v_rol
+        when 'educador' then 'Docente'
+        when 'administrador' then 'Administrador'
+        else 'Estudiante'
+      end
+    ),
+    80
+  );
+
+  insert into public.perfiles (
+    id, nombre, fecha_nacimiento, colegio_id, curso,
+    correo_acudiente, consentimiento_acudiente, rol,
+    cargo_educativo, area_educativa, cursos_educativos
+  )
+  values (
+    new.id,
+    v_nombre,
+    case when v_rol = 'estudiante' then v_fecha end,
+    v_colegio_id,
+    case when v_rol = 'estudiante' then left(v_meta ->> 'curso', 30) end,
+    case when v_rol = 'estudiante' and v_es_menor then left(v_meta ->> 'correo_acudiente', 254) end,
+    case when v_es_menor then 'pendiente' else 'aprobado' end,
+    v_rol,
+    case when v_rol = 'educador' then left(v_meta ->> 'cargo_educativo', 80) end,
+    case when v_rol = 'educador' then left(v_meta ->> 'area_educativa', 80) end,
+    v_cursos
+  );
+
+  if v_rol = 'estudiante' then
+    insert into public.personajes (usuario_id, saldo_billetera, salario_mensual, nivel, xp, modo_juego)
+    values (new.id, 0, 1200000, 1, 0, 'estudiante');
+
+    if v_es_menor then
+      insert into public.solicitudes_consentimiento (perfil_id) values (new.id);
+    end if;
+  elsif v_rol = 'educador' then
+    -- Personaje de práctica: permite explorar el juego sin tocar el ambiente de estudiantes.
+    insert into public.personajes (usuario_id, saldo_billetera, salario_mensual, nivel, xp, modo_juego)
+    values (new.id, 0, 1200000, 1, 0, 'educador_demo');
+
+    if v_invitacion.id is not null then
+      update public.invitaciones_educador
+      set usuario_id = new.id
+      where id = v_invitacion.id;
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+
+-- Educadores que ya existan sin personaje reciben el personaje de práctica.
+insert into public.personajes (usuario_id, saldo_billetera, salario_mensual, nivel, xp, modo_juego)
+select p.id, 0, 1200000, 1, 0, 'educador_demo'
+from public.perfiles p
+where p.rol = 'educador'
+  and not exists (select 1 from public.personajes x where x.usuario_id = p.id);
+
+-- ─────────────────────────────────────────────
+-- 4. Eventos diarios: solo personajes de estudiantes activos
+-- ─────────────────────────────────────────────
+create or replace function public.generar_eventos_diarios()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_personaje record;
+  v_num_eventos int;
+  v_tipo text;
+  v_monto numeric;
+  v_descripcion text;
+  v_tipos text[] := array['factura_inesperada', 'imprevisto_medico', 'bono_inesperado', 'oferta_sospechosa'];
+  i int;
+begin
+  for v_personaje in
+    select personaje.id
+    from public.personajes personaje
+    join public.perfiles perfil on perfil.id = personaje.usuario_id
+    where personaje.modo_juego = 'estudiante'
+      and perfil.rol = 'estudiante'
+      and perfil.activo
+  loop
+    v_num_eventos := floor(random() * 3)::int;
+
+    for i in 1..v_num_eventos loop
+      v_tipo := v_tipos[1 + floor(random() * array_length(v_tipos, 1))::int];
+
+      case v_tipo
+        when 'factura_inesperada' then
+          v_monto := round((20000 + random() * 60000)::numeric, -3);
+          v_descripcion := 'Se dañó algo en casa y toca arreglarlo esta semana.';
+        when 'imprevisto_medico' then
+          v_monto := round((30000 + random() * 70000)::numeric, -3);
+          v_descripcion := 'Te enfermaste y tuviste que ir a una cita médica.';
+        when 'bono_inesperado' then
+          v_monto := round((20000 + random() * 40000)::numeric, -3);
+          v_descripcion := 'Un familiar te mandó una plata de sorpresa.';
+        when 'oferta_sospechosa' then
+          v_monto := round((50000 + random() * 150000)::numeric, -3);
+          v_descripcion := 'Te llega un mensaje: "invierte hoy y dobla tu plata en una semana".';
+      end case;
+
+      insert into public.eventos_aleatorios (personaje_id, tipo, descripcion, impacto_monto, estado)
+      values (v_personaje.id, v_tipo, v_descripcion, v_monto, 'pendiente');
+    end loop;
+  end loop;
+end;
+$$;
+
+revoke all on function public.generar_eventos_diarios() from public, anon, authenticated;
+grant execute on function public.generar_eventos_diarios() to postgres, service_role;
+
+-- ─────────────────────────────────────────────
+-- 5. Ranking con avatar y marca de "usuario actual"
+--    (cambia el tipo de retorno, por eso DROP + CREATE)
+-- ─────────────────────────────────────────────
+drop function if exists public.obtener_ranking_colegio();
+
+create function public.obtener_ranking_colegio()
+returns table (
+  nombre text,
+  curso text,
+  nivel int,
+  xp int,
+  avatar_id text,
+  es_usuario_actual boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_colegio_id uuid;
+begin
+  select colegio_id into v_colegio_id
+  from public.perfiles
+  where id = auth.uid() and rol = 'estudiante' and activo;
+  if not found or v_colegio_id is null then return; end if;
+
+  return query
+  select p.nombre, p.curso, personaje.nivel, personaje.xp, p.avatar_id, (p.id = auth.uid())
+  from public.perfiles p
+  join public.personajes personaje on personaje.usuario_id = p.id
+  where p.colegio_id = v_colegio_id
+    and p.rol = 'estudiante'
+    and p.activo
+    and personaje.modo_juego = 'estudiante'
+  order by personaje.xp desc, p.nombre
+  limit 50;
+end;
+$$;
+
+revoke all on function public.obtener_ranking_colegio() from public;
+grant execute on function public.obtener_ranking_colegio() to authenticated;
+
+-- ════════════════════════════════════════════════════════════
+-- 0020_admin_colegios_cursos.sql
+-- ════════════════════════════════════════════════════════════
+-- preparatorIA — 0020: base del rol administrador (colegios, cursos, auditoría).
+--
+-- QUÉ HACE
+--   1. colegios: activo / creado_en / actualizado_en. Desactivar es preferible a borrar porque
+--      perfiles, invitaciones e informes referencian al colegio.
+--   2. cursos_colegio: cursos o grupos de cada colegio. Es la ÚNICA fuente de cursos para los
+--      selectores de registro (estudiante y educador); el servidor vuelve a validarlos.
+--   3. es_administrador(): función SECURITY DEFINER para usar en políticas RLS sin recursión.
+--   4. actividad_sistema: auditoría básica de acciones administrativas (solo lectura para el admin).
+--   5. Política de lectura de perfiles para el administrador.
+--   6. actualizar_perfil(): valida que el curso pertenezca al colegio y que el colegio esté activo.
+--
+-- SEGURIDAD
+--   Los clientes (anon/authenticated) NO pueden escribir colegios ni cursos. El administrador opera
+--   desde el servidor con la service-role key DESPUÉS de verificar auth.uid() + rol (lib/admin).
+
+-- ─────────────────────────────────────────────
+-- 1. colegios
+-- ─────────────────────────────────────────────
+alter table public.colegios
+  add column if not exists activo boolean not null default true,
+  add column if not exists creado_en timestamptz not null default now(),
+  add column if not exists actualizado_en timestamptz not null default now();
+
+-- ─────────────────────────────────────────────
+-- 3. es_administrador()
+-- ─────────────────────────────────────────────
+create or replace function public.es_administrador()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.perfiles
+    where id = auth.uid() and rol = 'administrador' and activo
+  );
+$$;
+
+revoke all on function public.es_administrador() from public;
+grant execute on function public.es_administrador() to authenticated;
+
+-- Colegio del usuario actual. SECURITY DEFINER porque anon/authenticated no pueden leer perfiles
+-- directamente y una subconsulta dentro de la política se ejecuta con sus privilegios.
+create or replace function public.mi_colegio_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select colegio_id from public.perfiles where id = auth.uid();
+$$;
+
+revoke all on function public.mi_colegio_id() from public;
+grant execute on function public.mi_colegio_id() to anon, authenticated;
+
+-- Lectura pública solo de colegios activos (más el propio colegio del usuario aunque se desactive).
+drop policy if exists "colegios: lectura pública" on public.colegios;
+drop policy if exists "colegios: lectura pública de activos" on public.colegios;
+create policy "colegios: lectura pública de activos"
+  on public.colegios for select
+  using (activo or id = public.mi_colegio_id());
+
+grant select on public.colegios to anon, authenticated;
+grant select, insert, update, delete on public.colegios to service_role;
+revoke insert, update, delete on public.colegios from anon, authenticated;
+
+-- ─────────────────────────────────────────────
+-- 2. cursos_colegio
+-- ─────────────────────────────────────────────
+create table if not exists public.cursos_colegio (
+  id uuid primary key default gen_random_uuid(),
+  colegio_id uuid not null references public.colegios(id) on delete cascade,
+  nombre text not null check (length(trim(nombre)) between 1 and 30),
+  activo boolean not null default true,
+  creado_en timestamptz not null default now()
+);
+
+create unique index if not exists cursos_colegio_nombre_unico_idx
+  on public.cursos_colegio (colegio_id, lower(trim(nombre)));
+create index if not exists cursos_colegio_colegio_idx
+  on public.cursos_colegio (colegio_id) where activo;
+
+alter table public.cursos_colegio enable row level security;
+
+drop policy if exists "cursos_colegio: lectura pública de activos" on public.cursos_colegio;
+create policy "cursos_colegio: lectura pública de activos"
+  on public.cursos_colegio for select
+  using (
+    activo
+    and exists (
+      select 1 from public.colegios c
+      where c.id = cursos_colegio.colegio_id and c.activo
+    )
+  );
+
+revoke all on public.cursos_colegio from anon, authenticated;
+grant select on public.cursos_colegio to anon, authenticated;
+grant all on public.cursos_colegio to service_role;
+
+-- ─────────────────────────────────────────────
+-- 4. actividad_sistema
+-- ─────────────────────────────────────────────
+create table if not exists public.actividad_sistema (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references public.perfiles(id) on delete set null,
+  accion text not null check (length(accion) between 1 and 60),
+  entidad text not null check (length(entidad) between 1 and 40),
+  entidad_id text check (length(entidad_id) <= 80),
+  detalle text check (length(detalle) <= 200),
+  creado_en timestamptz not null default now()
+);
+
+create index if not exists actividad_sistema_fecha_idx
+  on public.actividad_sistema (creado_en desc);
+
+alter table public.actividad_sistema enable row level security;
+
+drop policy if exists "actividad_sistema: lectura del administrador" on public.actividad_sistema;
+create policy "actividad_sistema: lectura del administrador"
+  on public.actividad_sistema for select
+  using (public.es_administrador());
+
+revoke all on public.actividad_sistema from anon, authenticated;
+grant select on public.actividad_sistema to authenticated;
+grant all on public.actividad_sistema to service_role;
+
+-- ─────────────────────────────────────────────
+-- 5. El administrador puede leer perfiles (listados de cuentas, nombres en tickets)
+-- ─────────────────────────────────────────────
+drop policy if exists "perfiles: lectura del administrador" on public.perfiles;
+create policy "perfiles: lectura del administrador"
+  on public.perfiles for select
+  using (public.es_administrador());
+
+grant select, insert, update, delete on public.perfiles to service_role;
+
+-- ─────────────────────────────────────────────
+-- 6. actualizar_perfil(): colegio activo + curso del colegio
+-- ─────────────────────────────────────────────
+create or replace function public.actualizar_perfil(
+  p_nombre text,
+  p_curso text,
+  p_colegio_id uuid,
+  p_avatar_id text
+)
+returns text[]
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_perfil public.perfiles;
+  v_cambios text[] := '{}';
+  v_curso text := nullif(trim(p_curso), '');
+begin
+  if auth.uid() is null then raise exception 'Debes iniciar sesión.'; end if;
+  if p_nombre is null or length(trim(p_nombre)) not between 2 and 80
+     or trim(p_nombre) ~ '[^[:alpha:] .''-]'
+     or v_curso is not null and length(v_curso) > 30
+     or v_curso is not null and v_curso ~ '[^[:alnum:] .''-]'
+     or p_avatar_id not in (
+       'avatar_01', 'avatar_02', 'avatar_03', 'avatar_04',
+       'avatar_05', 'avatar_06', 'avatar_07', 'avatar_08'
+     ) then
+    raise exception 'Datos de perfil inválidos.';
+  end if;
+
+  select * into v_perfil
+  from public.perfiles
+  where id = auth.uid() and activo
+  for update;
+  if not found then raise exception 'Perfil no encontrado.'; end if;
+
+  if v_perfil.rol in ('educador', 'administrador')
+     and p_colegio_id is distinct from v_perfil.colegio_id then
+    raise exception 'La institución educativa no puede cambiarse desde el perfil.';
+  end if;
+
+  if p_colegio_id is not null and p_colegio_id is distinct from v_perfil.colegio_id
+     and not exists (select 1 from public.colegios where id = p_colegio_id and activo) then
+    raise exception 'El colegio seleccionado no existe.';
+  end if;
+
+  -- Si el colegio ya tiene cursos configurados, el curso debe ser uno de ellos.
+  if v_perfil.rol = 'estudiante' and v_curso is not null and p_colegio_id is not null
+     and exists (select 1 from public.cursos_colegio where colegio_id = p_colegio_id and activo)
+     and not exists (
+       select 1 from public.cursos_colegio
+       where colegio_id = p_colegio_id and activo and lower(trim(nombre)) = lower(v_curso)
+     ) then
+    raise exception 'El curso no pertenece al colegio seleccionado.';
+  end if;
+
+  if v_perfil.nombre is distinct from trim(p_nombre) then v_cambios := array_append(v_cambios, 'nombre_modificado'); end if;
+  if v_perfil.curso is distinct from v_curso then v_cambios := array_append(v_cambios, 'curso_modificado'); end if;
+  if v_perfil.colegio_id is distinct from p_colegio_id then v_cambios := array_append(v_cambios, 'colegio_modificado'); end if;
+  if v_perfil.avatar_id is distinct from p_avatar_id then v_cambios := array_append(v_cambios, 'avatar_modificado'); end if;
+
+  update public.perfiles
+  set nombre = trim(p_nombre),
+      curso = v_curso,
+      colegio_id = p_colegio_id,
+      avatar_id = p_avatar_id
+  where id = auth.uid();
+
+  insert into public.cambios_perfil (usuario_id, tipo_cambio, descripcion)
+  select auth.uid(), filas.cambio, replace(filas.cambio, '_', ' ')
+  from unnest(v_cambios) as filas(cambio);
+
+  return v_cambios;
+end;
+$$;
+
+revoke all on function public.actualizar_perfil(text, text, uuid, text) from public;
+grant execute on function public.actualizar_perfil(text, text, uuid, text) to authenticated;
+
+-- ════════════════════════════════════════════════════════════
+-- 0021_invitaciones_admin.sql
+-- ════════════════════════════════════════════════════════════
+-- preparatorIA — 0021: invitaciones de educador gestionables por el administrador.
+--
+-- QUÉ HACE
+--   1. invitaciones_educador: revocada_en (revocar sin borrar historial) y creada_por (auditoría).
+--   2. Solo puede existir UNA invitación vigente (sin usar y sin revocar) por colegio + correo.
+--      "Regenerar" = revocar la anterior + crear una nueva (lo hace el servidor).
+--   3. Privilegios: solo service_role opera sobre la tabla (el admin pasa por el servidor, que
+--      verifica auth.uid() + rol antes de usar la service-role key).
+--
+-- NO CAMBIA crear_invitacion_educador(): se reutiliza tal cual (valida hash SHA-256, correo,
+-- expiración futura y colegio existente). El código en claro nunca se guarda; se muestra una vez.
+
+alter table public.invitaciones_educador
+  add column if not exists revocada_en timestamptz,
+  add column if not exists creada_por uuid references public.perfiles(id) on delete set null;
+
+-- Limpia duplicados vigentes previos (deja la más reciente) antes de crear el índice único.
+update public.invitaciones_educador i
+set revocada_en = now()
+where i.usada_en is null
+  and i.revocada_en is null
+  and exists (
+    select 1 from public.invitaciones_educador j
+    where j.colegio_id = i.colegio_id
+      and lower(j.correo_institucional) = lower(i.correo_institucional)
+      and j.usada_en is null
+      and j.revocada_en is null
+      and (j.creada_en, j.id) > (i.creada_en, i.id)
+  );
+
+create unique index if not exists invitaciones_vigente_unica_idx
+  on public.invitaciones_educador (colegio_id, lower(correo_institucional))
+  where usada_en is null and revocada_en is null;
+
+create index if not exists invitaciones_colegio_idx
+  on public.invitaciones_educador (colegio_id, creada_en desc);
+
+revoke all on public.invitaciones_educador from anon, authenticated;
+grant select, update on public.invitaciones_educador to service_role;
+
+-- ════════════════════════════════════════════════════════════
+-- 0022_tickets_soporte.sql
+-- ════════════════════════════════════════════════════════════
+-- preparatorIA — 0022: soporte (tickets) con RLS.
+--
+-- DISEÑO DE SEGURIDAD
+--   · El usuario CREA tickets por INSERT directo, pero solo con las columnas permitidas; estado,
+--     prioridad inicial por defecto, asignación y cierre NO son escribibles por el cliente.
+--   · Todo lo demás (responder, cambiar estado/prioridad, asignar, cerrar) pasa por funciones
+--     SECURITY DEFINER que verifican auth.uid() y rol DENTRO de la base de datos.
+--     Así las reglas valen aunque alguien llame a la API directamente.
+--   · Un usuario ve solo sus tickets y mensajes; el administrador ve todo.
+--   · Estados: abierto → en_proceso → respondido → cerrado. El usuario puede responder mientras no
+--     esté cerrado (si estaba "respondido", vuelve a "abierto" para que el admin lo vea).
+
+create table if not exists public.tickets_soporte (
+  id uuid primary key default gen_random_uuid(),
+  usuario_id uuid not null default auth.uid() references public.perfiles(id) on delete cascade,
+  asunto text not null check (length(trim(asunto)) between 3 and 120),
+  categoria text not null default 'otro'
+    check (categoria in ('cuenta', 'error_tecnico', 'ia', 'contenido', 'sugerencia', 'otro')),
+  descripcion text not null check (length(trim(descripcion)) between 10 and 2000),
+  pagina text check (length(pagina) <= 200),
+  estado text not null default 'abierto'
+    check (estado in ('abierto', 'en_proceso', 'respondido', 'cerrado')),
+  prioridad text not null default 'media'
+    check (prioridad in ('baja', 'media', 'alta', 'urgente')),
+  creado_en timestamptz not null default now(),
+  actualizado_en timestamptz not null default now(),
+  cerrado_en timestamptz,
+  administrador_asignado_id uuid references public.perfiles(id) on delete set null
+);
+
+create index if not exists tickets_soporte_usuario_idx on public.tickets_soporte (usuario_id, creado_en desc);
+create index if not exists tickets_soporte_estado_idx on public.tickets_soporte (estado, prioridad, creado_en desc);
+
+create table if not exists public.tickets_mensajes (
+  id uuid primary key default gen_random_uuid(),
+  ticket_id uuid not null references public.tickets_soporte(id) on delete cascade,
+  autor_id uuid not null references public.perfiles(id) on delete cascade,
+  autor_rol text not null check (autor_rol in ('estudiante', 'educador', 'administrador')),
+  mensaje text not null check (length(trim(mensaje)) between 1 and 2000),
+  creado_en timestamptz not null default now()
+);
+
+create index if not exists tickets_mensajes_ticket_idx on public.tickets_mensajes (ticket_id, creado_en);
+
+alter table public.tickets_soporte enable row level security;
+alter table public.tickets_mensajes enable row level security;
+
+-- Lectura
+drop policy if exists "tickets: el usuario ve los suyos" on public.tickets_soporte;
+create policy "tickets: el usuario ve los suyos"
+  on public.tickets_soporte for select using (usuario_id = auth.uid());
+drop policy if exists "tickets: el administrador ve todos" on public.tickets_soporte;
+create policy "tickets: el administrador ve todos"
+  on public.tickets_soporte for select using (public.es_administrador());
+
+-- Creación: solo como uno mismo, cuenta activa y no administrador-suplantado
+drop policy if exists "tickets: el usuario crea los suyos" on public.tickets_soporte;
+create policy "tickets: el usuario crea los suyos"
+  on public.tickets_soporte for insert
+  with check (
+    usuario_id = auth.uid()
+    and exists (select 1 from public.perfiles where id = auth.uid() and activo)
+  );
+
+drop policy if exists "tickets_mensajes: lectura del dueño del ticket" on public.tickets_mensajes;
+create policy "tickets_mensajes: lectura del dueño del ticket"
+  on public.tickets_mensajes for select
+  using (exists (select 1 from public.tickets_soporte t where t.id = ticket_id and t.usuario_id = auth.uid()));
+drop policy if exists "tickets_mensajes: lectura del administrador" on public.tickets_mensajes;
+create policy "tickets_mensajes: lectura del administrador"
+  on public.tickets_mensajes for select using (public.es_administrador());
+
+-- Privilegios mínimos: el cliente solo inserta columnas de contenido.
+revoke all on public.tickets_soporte, public.tickets_mensajes from anon, authenticated;
+grant select on public.tickets_soporte, public.tickets_mensajes to authenticated;
+grant insert (usuario_id, asunto, categoria, descripcion, prioridad, pagina)
+  on public.tickets_soporte to authenticated;
+grant all on public.tickets_soporte, public.tickets_mensajes to service_role;
+
+-- ─────────────────────────────────────────────
+-- responder_ticket(): usuario dueño o administrador
+-- ─────────────────────────────────────────────
+create or replace function public.responder_ticket(p_ticket_id uuid, p_mensaje text)
+returns public.tickets_mensajes
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_perfil public.perfiles;
+  v_ticket public.tickets_soporte;
+  v_msg public.tickets_mensajes;
+  v_texto text := trim(coalesce(p_mensaje, ''));
+begin
+  if auth.uid() is null then raise exception 'Debes iniciar sesión.'; end if;
+  if length(v_texto) not between 1 and 2000 then raise exception 'El mensaje debe tener entre 1 y 2000 caracteres.'; end if;
+
+  select * into v_perfil from public.perfiles where id = auth.uid() and activo;
+  if not found then raise exception 'Cuenta no disponible.'; end if;
+
+  select * into v_ticket from public.tickets_soporte where id = p_ticket_id for update;
+  if not found or (v_perfil.rol <> 'administrador' and v_ticket.usuario_id <> auth.uid()) then
+    raise exception 'Ticket no encontrado.';
+  end if;
+
+  if v_perfil.rol = 'administrador' then
+    insert into public.tickets_mensajes (ticket_id, autor_id, autor_rol, mensaje)
+    values (p_ticket_id, auth.uid(), 'administrador', v_texto) returning * into v_msg;
+    -- Responder a un ticket cerrado lo reabre implícitamente como "respondido" solo si aún no está cerrado:
+    -- para reabrir un ticket cerrado el administrador debe usar gestionar_ticket.
+    if v_ticket.estado <> 'cerrado' then
+      update public.tickets_soporte
+      set estado = 'respondido', actualizado_en = now(),
+          administrador_asignado_id = coalesce(administrador_asignado_id, auth.uid())
+      where id = p_ticket_id;
+    end if;
+  else
+    if v_ticket.estado = 'cerrado' then raise exception 'El ticket está cerrado.'; end if;
+    insert into public.tickets_mensajes (ticket_id, autor_id, autor_rol, mensaje)
+    values (p_ticket_id, auth.uid(), v_perfil.rol, v_texto) returning * into v_msg;
+    update public.tickets_soporte
+    set estado = case when estado = 'respondido' then 'abierto' else estado end,
+        actualizado_en = now()
+    where id = p_ticket_id;
+  end if;
+
+  return v_msg;
+end;
+$$;
+
+-- ─────────────────────────────────────────────
+-- gestionar_ticket(): solo administrador
+-- ─────────────────────────────────────────────
+create or replace function public.gestionar_ticket(
+  p_ticket_id uuid,
+  p_estado text default null,
+  p_prioridad text default null,
+  p_asignado_id uuid default null,
+  p_asignar boolean default false
+)
+returns public.tickets_soporte
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ticket public.tickets_soporte;
+begin
+  if not public.es_administrador() then raise exception 'No autorizado.'; end if;
+  if p_estado is not null and p_estado not in ('abierto', 'en_proceso', 'respondido', 'cerrado') then
+    raise exception 'Estado inválido.';
+  end if;
+  if p_prioridad is not null and p_prioridad not in ('baja', 'media', 'alta', 'urgente') then
+    raise exception 'Prioridad inválida.';
+  end if;
+  if p_asignar and p_asignado_id is not null
+     and not exists (select 1 from public.perfiles where id = p_asignado_id and rol = 'administrador' and activo) then
+    raise exception 'Solo se puede asignar a un administrador activo.';
+  end if;
+
+  update public.tickets_soporte
+  set estado = coalesce(p_estado, estado),
+      prioridad = coalesce(p_prioridad, prioridad),
+      administrador_asignado_id = case when p_asignar then p_asignado_id else administrador_asignado_id end,
+      cerrado_en = case
+        when coalesce(p_estado, estado) = 'cerrado' then coalesce(cerrado_en, now())
+        else null end,
+      actualizado_en = now()
+  where id = p_ticket_id
+  returning * into v_ticket;
+  if not found then raise exception 'Ticket no encontrado.'; end if;
+
+  insert into public.actividad_sistema (actor_id, accion, entidad, entidad_id, detalle)
+  values (auth.uid(), 'ticket_gestionado', 'ticket', p_ticket_id::text,
+          left(format('estado=%s prioridad=%s', v_ticket.estado, v_ticket.prioridad), 200));
+
+  return v_ticket;
+end;
+$$;
+
+revoke all on function public.responder_ticket(uuid, text) from public, anon;
+revoke all on function public.gestionar_ticket(uuid, text, text, uuid, boolean) from public, anon;
+grant execute on function public.responder_ticket(uuid, text) to authenticated;
+grant execute on function public.gestionar_ticket(uuid, text, text, uuid, boolean) to authenticated;
+
+-- ════════════════════════════════════════════════════════════
+-- 0023_conversaciones_ia.sql
+-- ════════════════════════════════════════════════════════════
+-- preparatorIA — 0023: conversaciones persistentes de IA (Guía global y IA educativa).
+--
+-- QUÉ HACE
+--   1. conversaciones_ia: una fila por conversación (tipo 'guia' | 'educativa'), con título.
+--   2. mensajes_ia_guia GANA conversacion_id (se extiende la tabla existente, no se duplica).
+--      Los mensajes previos se agrupan en una conversación "Conversación anterior" por usuario.
+--   3. mensajes_ia_educativa: historial SEPARADO del educador (educador_id, conversacion_id, autor, texto).
+--   4. RLS: cada persona ve y gestiona solo lo suyo. El historial educativo solo lo pueden usar
+--      cuentas con rol 'educador' activas; el estudiante nunca lo ve.
+
+create table if not exists public.conversaciones_ia (
+  id uuid primary key default gen_random_uuid(),
+  perfil_id uuid not null references public.perfiles(id) on delete cascade,
+  tipo text not null check (tipo in ('guia', 'educativa')),
+  titulo text not null default 'Nueva conversación' check (length(titulo) between 1 and 80),
+  creado_en timestamptz not null default now(),
+  actualizado_en timestamptz not null default now()
+);
+
+create index if not exists conversaciones_ia_perfil_idx
+  on public.conversaciones_ia (perfil_id, tipo, actualizado_en desc);
+
+alter table public.conversaciones_ia enable row level security;
+drop policy if exists "conversaciones_ia: el usuario gestiona las suyas" on public.conversaciones_ia;
+create policy "conversaciones_ia: el usuario gestiona las suyas"
+  on public.conversaciones_ia for all
+  using (perfil_id = auth.uid())
+  with check (
+    perfil_id = auth.uid()
+    and (tipo = 'guia' or exists (
+      select 1 from public.perfiles where id = auth.uid() and rol = 'educador' and activo))
+  );
+
+revoke all on public.conversaciones_ia from anon, authenticated;
+grant select, insert, update, delete on public.conversaciones_ia to authenticated;
+grant all on public.conversaciones_ia to service_role;
+
+-- mensajes_ia_guia: conversación + autor 'guia' | 'estudiante' (se mantiene para educadores que usan la guía general)
+alter table public.mensajes_ia_guia
+  add column if not exists conversacion_id uuid references public.conversaciones_ia(id) on delete cascade;
+
+create index if not exists mensajes_ia_guia_conversacion_idx
+  on public.mensajes_ia_guia (conversacion_id, creado_en);
+
+-- Backfill: una conversación por usuario con mensajes antiguos.
+with usuarios as (
+  select perfil_id, min(creado_en) as primero, max(creado_en) as ultimo
+  from public.mensajes_ia_guia
+  where conversacion_id is null
+  group by perfil_id
+), nuevas as (
+  insert into public.conversaciones_ia (perfil_id, tipo, titulo, creado_en, actualizado_en)
+  select perfil_id, 'guia', 'Conversación anterior', primero, ultimo from usuarios
+  returning id, perfil_id
+)
+update public.mensajes_ia_guia m
+set conversacion_id = n.id
+from nuevas n
+where m.perfil_id = n.perfil_id and m.conversacion_id is null;
+
+-- Que la conversación pertenezca a quien escribe el mensaje
+drop policy if exists "mensajes_ia_guia: el usuario ve/gestiona solo los suyos" on public.mensajes_ia_guia;
+drop policy if exists "mensajes_ia_guia: solo en conversaciones propias" on public.mensajes_ia_guia;
+create policy "mensajes_ia_guia: solo en conversaciones propias"
+  on public.mensajes_ia_guia for all
+  using (auth.uid() = perfil_id)
+  with check (
+    auth.uid() = perfil_id
+    and (conversacion_id is null or exists (
+      select 1 from public.conversaciones_ia c
+      where c.id = conversacion_id and c.perfil_id = auth.uid() and c.tipo = 'guia'))
+  );
+
+create table if not exists public.mensajes_ia_educativa (
+  id uuid primary key default gen_random_uuid(),
+  educador_id uuid not null references public.perfiles(id) on delete cascade,
+  conversacion_id uuid not null references public.conversaciones_ia(id) on delete cascade,
+  autor text not null check (autor in ('educador', 'ia')),
+  texto text not null check (length(texto) between 1 and 6000),
+  contexto jsonb,
+  creado_en timestamptz not null default now()
+);
+
+create index if not exists mensajes_ia_educativa_conv_idx
+  on public.mensajes_ia_educativa (conversacion_id, creado_en);
+
+alter table public.mensajes_ia_educativa enable row level security;
+drop policy if exists "mensajes_ia_educativa: el educador gestiona los suyos" on public.mensajes_ia_educativa;
+create policy "mensajes_ia_educativa: el educador gestiona los suyos"
+  on public.mensajes_ia_educativa for all
+  using (
+    educador_id = auth.uid()
+    and exists (select 1 from public.perfiles where id = auth.uid() and rol = 'educador' and activo)
+  )
+  with check (
+    educador_id = auth.uid()
+    and exists (select 1 from public.perfiles where id = auth.uid() and rol = 'educador' and activo)
+    and exists (
+      select 1 from public.conversaciones_ia c
+      where c.id = conversacion_id and c.perfil_id = auth.uid() and c.tipo = 'educativa')
+  );
+
+revoke all on public.mensajes_ia_educativa from anon, authenticated;
+grant select, insert, delete on public.mensajes_ia_educativa to authenticated;
+grant all on public.mensajes_ia_educativa to service_role;
+
+-- ════════════════════════════════════════════════════════════
+-- 0024_eliminar_cuenta.sql
+-- ════════════════════════════════════════════════════════════
+-- preparatorIA — 0024: eliminación completa de los datos de una cuenta (solo service_role).
+--
+-- POR QUÉ
+--   Varias llaves foráneas hacia perfiles/personajes no tienen ON DELETE CASCADE
+--   (personajes, transacciones, progreso, metas, eventos, consentimientos, mensajes de IA, cambios
+--   de perfil, informes). Borrar un perfil con historial fallaba. Esta función borra, en una sola
+--   transacción y en el orden correcto, todo lo asociado a un estudiante o educador. Después la
+--   aplicación elimina el usuario de Supabase Auth con la Auth Admin API.
+--
+-- SEGURIDAD
+--   · SECURITY DEFINER con search_path fijo; ejecución solo para service_role (la app la llama
+--     únicamente tras verificar auth.uid() + rol administrador en el servidor).
+--   · Se niega a eliminar administradores.
+--   · Los informes educativos que el educador escribió sobre otros se borran con él; los que
+--     mencionan a un estudiante eliminado conservan el informe pero pierden la referencia.
+
+create or replace function public.eliminar_datos_usuario(p_usuario_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rol text;
+begin
+  select rol into v_rol from public.perfiles where id = p_usuario_id;
+  if not found then
+    return;
+  end if;
+  if v_rol = 'administrador' then
+    raise exception 'No se pueden eliminar administradores desde la aplicación.';
+  end if;
+
+  delete from public.transacciones
+    where personaje_id in (select id from public.personajes where usuario_id = p_usuario_id);
+  delete from public.metas_ahorro
+    where personaje_id in (select id from public.personajes where usuario_id = p_usuario_id);
+  delete from public.eventos_aleatorios
+    where personaje_id in (select id from public.personajes where usuario_id = p_usuario_id);
+  delete from public.personajes where usuario_id = p_usuario_id;
+
+  delete from public.progreso_usuario_reto where usuario_id = p_usuario_id;
+  delete from public.solicitudes_consentimiento where perfil_id = p_usuario_id;
+  delete from public.mensajes_ia_guia where perfil_id = p_usuario_id;
+  delete from public.cambios_perfil where usuario_id = p_usuario_id;
+
+  delete from public.informes_educativos where educador_id = p_usuario_id;
+  update public.informes_educativos set estudiante_id = null where estudiante_id = p_usuario_id;
+  update public.invitaciones_educador set usuario_id = null where usuario_id = p_usuario_id;
+
+  -- tickets, mensajes de ticket, conversaciones y mensajes de IA educativa caen por CASCADE.
+  delete from public.perfiles where id = p_usuario_id;
+end;
+$$;
+
+revoke all on function public.eliminar_datos_usuario(uuid) from public, anon, authenticated;
+grant execute on function public.eliminar_datos_usuario(uuid) to service_role;

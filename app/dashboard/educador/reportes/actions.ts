@@ -8,6 +8,7 @@ import {
 } from "@/lib/educacion";
 import { generarSugerenciaEducativa } from "@/lib/ai/prompts/educador";
 import { sanitizarTextoIA } from "@/lib/primer-empleo";
+import { etiquetaPeriodo } from "@/lib/periodos";
 import type { InformeIAEducativa } from "@/lib/ai/schemas/educador";
 
 export interface ReporteEducativoState {
@@ -26,15 +27,15 @@ export async function generarReporteEducativo(
   formData: FormData,
 ): Promise<ReporteEducativoState> {
   const { supabase, usuarioId, colegioId } = await requireEducador();
-  const periodo = sanitizarTextoIA(String(formData.get("periodo") ?? ""), 40);
+  // El periodo viene de un <select> (lib/periodos.ts); aquí se valida de nuevo: no hay texto libre.
+  const periodo = etiquetaPeriodo(String(formData.get("periodo") ?? ""));
   const cursoSolicitado = sanitizarTextoIA(
     String(formData.get("curso") ?? ""),
     30,
   );
   const estudianteId =
     String(formData.get("estudiante_id") ?? "").trim() || null;
-  if (!periodo || periodo.length > 40)
-    return { error: "Indica un periodo de hasta 40 caracteres." };
+  if (!periodo) return { error: "Selecciona un periodo válido." };
 
   const { estudiantes, error } = await obtenerEstudiantesEducador(supabase);
   if (error) return { error };
@@ -90,43 +91,4 @@ export async function generarReporteEducativo(
       ia: resultadoIA.informe,
     },
   };
-}
-
-export interface PreguntaEducativaState {
-  error?: string;
-  respuesta?: InformeIAEducativa;
-}
-
-export async function preguntarIAEducativa(
-  _prevState: PreguntaEducativaState,
-  formData: FormData,
-): Promise<PreguntaEducativaState> {
-  const { supabase } = await requireEducador();
-  const pregunta = sanitizarTextoIA(
-    String(formData.get("pregunta") ?? ""),
-    500,
-  );
-  if (pregunta.length < 12)
-    return { error: "Formula una pregunta pedagógica más concreta." };
-
-  const { estudiantes, error } = await obtenerEstudiantesEducador(supabase);
-  if (error) return { error };
-  const estudianteId = String(formData.get("estudiante_id") ?? "").trim();
-  const estudiante = estudianteId
-    ? estudiantes.find((item) => item.estudiante_id === estudianteId)
-    : null;
-  if (estudianteId && !estudiante)
-    return { error: "No se encontró ese estudiante en tu colegio." };
-
-  const seleccionados = estudiante ? [estudiante] : estudiantes;
-  if (seleccionados.length === 0)
-    return { error: "No hay datos educativos para consultar." };
-
-  const resultado = await generarSugerenciaEducativa(
-    resumirDatosEducativos(seleccionados, estudiante?.curso ?? null),
-    pregunta,
-  );
-  return resultado.success
-    ? { respuesta: resultado.informe }
-    : { error: resultado.error };
 }

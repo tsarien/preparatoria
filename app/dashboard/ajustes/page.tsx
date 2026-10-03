@@ -17,8 +17,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { TemaSelector } from "./tema-selector";
 import { PerfilForm } from "@/components/ajustes/perfil-form";
 import { PasswordForm } from "@/components/ajustes/password-form";
-import { cerrarSesion } from "@/app/dashboard/actions";
-import { Button } from "@/components/ui/button";
+import { BotonCerrarSesion } from "@/components/boton-cerrar-sesion";
 import { calcularEdadPerfil } from "@/lib/perfil";
 
 export default async function AjustesPage() {
@@ -55,13 +54,19 @@ export default async function AjustesPage() {
       supabase.from("colegios").select("id, nombre").order("nombre"),
     ]);
 
+  // El administrador gestiona su cuenta desde su panel; no usa este perfil de juego.
+  if (perfil?.rol === "administrador") redirect("/dashboard/admin");
+
   const nombre = perfil?.nombre ?? "Estudiante";
   const xpTotal = personaje?.xp ?? 0;
 
   return (
     <GameModuleShell ancho="compacto">
       <header className="flex flex-col gap-3">
-        <GameBackButton href="/dashboard" label="Volver al mapa" />
+        <GameBackButton
+          href={perfil?.rol === "educador" ? "/dashboard/educador" : "/dashboard"}
+          label={perfil?.rol === "educador" ? "Volver al panel" : "Volver al mapa"}
+        />
         <div className="flex items-center gap-4">
           <div className="min-w-0">
             <h1 className="wrap-break-word font-display text-2xl font-semibold leading-tight text-ink sm:text-3xl">
@@ -133,14 +138,9 @@ export default async function AjustesPage() {
           <div className="mt-5 border-t border-line pt-5">
             <PasswordForm />
           </div>
-          <form
-            action={cerrarSesion}
-            className="mt-4 border-t border-line pt-4"
-          >
-            <Button type="submit" variant="ghost">
-              Cerrar sesión
-            </Button>
-          </form>
+          <div className="mt-4 flex border-t border-line pt-4">
+            <BotonCerrarSesion etiquetaVisible />
+          </div>
         </CardContent>
       </Card>
 
@@ -160,10 +160,12 @@ export default async function AjustesPage() {
             externas. Solo puedes elegir ilustraciones incluidas en
             preparatorIA.
           </p>
-          <p>
-            La fecha de nacimiento está protegida porque determina el flujo de
-            consentimiento de acudiente para menores de edad.
-          </p>
+          {perfil?.rol === "estudiante" && (
+            <p>
+              La fecha de nacimiento está protegida porque determina el flujo de
+              consentimiento de acudiente para menores de edad.
+            </p>
+          )}
           {perfil?.rol === "estudiante" &&
             perfil.fecha_nacimiento &&
             calcularEdadPerfil(perfil.fecha_nacimiento) < 18 && (

@@ -3,48 +3,10 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { xpEnNivelActual, XP_POR_NIVEL } from "@/lib/gamification";
 import type { Perfil, Personaje } from "@/types/database";
-import { Button } from "@/components/ui/button";
 import { GameHUD } from "@/components/dashboard/game-hud";
 import { CaminoModulos } from "@/components/dashboard/camino-modulos";
-import { cerrarSesion } from "./actions";
-
-const MODULOS_MVP = [
-  {
-    slug: "presupuesto-personal",
-    grupo: "Dinero",
-    nombre: "Presupuesto personal",
-    icono: "/iconos/icono-presupuesto.png",
-    disponible: true,
-  },
-  {
-    slug: "ahorro-metas",
-    grupo: "Dinero",
-    nombre: "Ahorro con metas",
-    icono: "/iconos/icono-ahorro.png",
-    disponible: true,
-  },
-  {
-    slug: "primer-empleo",
-    grupo: "Vida profesional",
-    nombre: "Primer empleo",
-    icono: "/iconos/icono-empleo.png",
-    disponible: true,
-  },
-  {
-    slug: "detectar-estafas",
-    grupo: "Seguridad digital",
-    nombre: "Detectar estafas",
-    icono: "/iconos/icono-seguridad.png",
-    disponible: true,
-  },
-  {
-    slug: "contrato-arriendo",
-    grupo: "Vida independiente",
-    nombre: "Contrato de arriendo",
-    icono: "/iconos/icono-contrato.png",
-    disponible: true,
-  },
-];
+import { rutaInicioPorRol } from "@/lib/roles";
+import { MODULOS_MVP } from "@/lib/modulos";
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
@@ -57,12 +19,18 @@ export default async function DashboardPage() {
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("nombre, consentimiento_acudiente, rol")
+    .select("nombre, consentimiento_acudiente, rol, avatar_id")
     .eq("id", user.id)
-    .single<Pick<Perfil, "nombre" | "consentimiento_acudiente" | "rol">>();
+    .single<
+      Pick<Perfil, "nombre" | "consentimiento_acudiente" | "rol" | "avatar_id">
+    >();
 
-  if (perfil?.rol === "educador") redirect("/dashboard/educador");
-  if (perfil?.rol !== "estudiante") redirect("/login");
+  // El administrador no usa el juego: va a su panel. El educador SÍ puede explorarlo (modo
+  // demostración con un personaje de práctica excluido del ranking, reportes y estadísticas).
+  if (perfil?.rol === "administrador") redirect(rutaInicioPorRol("administrador"));
+  if (perfil?.rol !== "estudiante" && perfil?.rol !== "educador")
+    redirect("/login");
+  const modoDemo = perfil.rol === "educador";
 
   const { data: personaje } = await supabase
     .from("personajes")
@@ -75,7 +43,8 @@ export default async function DashboardPage() {
       > & { id: string }
     >();
 
-  const { count: eventosPendientes } = personaje
+  // Los eventos aleatorios solo se generan para estudiantes (el cron excluye personajes demo).
+  const { count: eventosPendientes } = personaje && !modoDemo
     ? await supabase
         .from("eventos_aleatorios")
         .select("id", { count: "exact", head: true })
@@ -87,7 +56,28 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
+      {modoDemo && (
+        <div
+          role="note"
+          className="game-card flex flex-col gap-1 rounded-2xl border-2 border-turquoise/50 bg-turquoise-soft px-4 py-3 text-sm text-ink sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p>
+            <strong>Modo demostración.</strong> Explora los módulos y retos como un
+            estudiante. Tu avance aquí es de práctica y no aparece en el ranking ni en los
+            reportes de tus estudiantes.
+          </p>
+          <Link
+            href="/dashboard/educador"
+            className="shrink-0 font-semibold underline underline-offset-2"
+          >
+            Volver al panel educativo
+          </Link>
+        </div>
+      )}
+
       <GameHUD
+        modoDemo={modoDemo}
+        avatarId={perfil?.avatar_id}
         nombre={perfil?.nombre ?? "estudiante"}
         saldo={personaje?.saldo_billetera ?? 0}
         nivel={personaje?.nivel ?? 1}
@@ -126,21 +116,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Mapa de aventura — protagonista */}
-      <CaminoModulos modulos={MODULOS_MVP} />
-
-      {/* Acciones secundarias al pie */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <Link href="/dashboard/billetera">
-          <Button variant="outline" size="sm" className="press">
-            Ver billetera completa
-          </Button>
-        </Link>
-        <form action={cerrarSesion}>
-          <Button variant="ghost" size="sm" type="submit" className="press">
-            Cerrar sesión
-          </Button>
-        </form>
-      </div>
+      <CaminoModulos modulos={[...MODULOS_MVP]} />
     </main>
   );
 }

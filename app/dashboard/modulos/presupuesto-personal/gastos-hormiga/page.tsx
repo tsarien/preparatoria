@@ -23,7 +23,6 @@ export default async function GastosHormigaPage() {
     : null;
   const items =
     (reto?.config as { items?: GastoHormigaItem[] } | null)?.items ?? [];
-  const completado = progreso?.estado === "completado";
 
   return (
     <GameChallengeShell

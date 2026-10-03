@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 interface GameModuleShellProps {
   children: ReactNode;
-  ancho?: "compacto" | "estandar";
+  ancho?: "compacto" | "estandar" | "amplio";
   className?: string;
 }
 
@@ -26,6 +26,7 @@ export function GameModuleShell({
         "relative mx-auto flex min-h-screen flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10",
         ancho === "estandar" && "max-w-2xl",
         ancho === "compacto" && "max-w-lg",
+        ancho === "amplio" && "max-w-6xl",
         className,
       )}
     >

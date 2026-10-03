@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { AvatarSelector } from "@/components/educador/avatar-selector";
+import { ColegioCursoCampos } from "@/components/auth/colegio-curso-campos";
 import {
   actualizarPerfil,
   type ActualizarPerfilState,
@@ -79,44 +80,27 @@ export function PerfilForm({
         </>
       ) : (
         <>
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-ink">
-            Colegio
-            <select
-              name="colegio_id"
-              required
-              defaultValue={colegioId}
-              className="h-11 rounded-lg border border-line bg-paper-raised px-3"
-            >
-              <option value="" disabled>
-                Selecciona tu colegio
-              </option>
-              {colegios.map((colegio) => (
-                <option key={colegio.id} value={colegio.id}>
-                  {colegio.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-ink">
-            Curso
-            <input
-              name="curso"
-              maxLength={30}
-              defaultValue={curso}
-              className="h-11 rounded-lg border border-line bg-paper-raised px-3"
-            />
-          </label>
+          <ColegioCursoCampos
+            colegios={colegios}
+            modo="estudiante"
+            colegioInicial={colegioId}
+            cursoInicial={curso}
+            idPrefijo="aj"
+          />
         </>
       )}
 
-      <div className="rounded-xl border border-line bg-paper p-3">
-        <p className="text-sm font-medium text-ink">Fecha de nacimiento</p>
-        <p className="mt-1 text-sm text-ink-soft">{fechaFormateada}</p>
-        <p className="mt-1 text-xs text-ink-soft">
-          Esta fecha está protegida para cuidar las reglas de consentimiento de
-          menores. Contacta a preparatorIA si necesitas corregirla.
-        </p>
-      </div>
+      {/* La fecha solo existe para estudiantes (decide el consentimiento del acudiente) y no es editable. */}
+      {!esEducador && (
+        <div className="rounded-xl border border-line bg-paper p-3">
+          <p className="text-sm font-medium text-ink">Fecha de nacimiento</p>
+          <p className="mt-1 text-sm text-ink-soft">{fechaFormateada}</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Esta fecha está protegida para cuidar las reglas de consentimiento de
+            menores. Contacta a preparatorIA si necesitas corregirla.
+          </p>
+        </div>
+      )}
 
       {state.error && (
         <p className="text-sm text-alert" role="alert">

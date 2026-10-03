@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import type { EstudianteEducativo } from "@/lib/educacion";
+import { PERIODOS_ACADEMICOS } from "@/lib/periodos";
 import {
   generarReporteEducativo,
   type ReporteEducativoState,
@@ -28,13 +29,21 @@ export function FormularioReporte({
       >
         <label className="flex flex-col gap-1 text-sm font-medium text-ink">
           Periodo
-          <input
+          <select
             name="periodo"
             required
-            maxLength={40}
-            placeholder="Septiembre 2026"
+            defaultValue=""
             className="h-10 rounded-lg border border-line bg-paper-raised px-3"
-          />
+          >
+            <option value="" disabled>
+              Selecciona un periodo
+            </option>
+            {PERIODOS_ACADEMICOS.map((periodo) => (
+              <option key={periodo.valor} value={periodo.valor}>
+                {periodo.etiqueta}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium text-ink">
           Estudiante
